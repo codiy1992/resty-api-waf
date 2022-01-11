@@ -1,9 +1,18 @@
 
-## WAF 说明
 
-### 参考项目
+## 安装
 
-* [VeryNginx](https://github.com/alexazhou/VeryNginx)
+### 依赖项(详见 Dockerfile)
+* [OpenResty](https://openresty.org/cn/linux-packages.html)
+* [Lua-Resty-JWT](https://github.com/SkyLothar/lua-resty-jwt)
+
+### 使用示例
+
+```shell
+docker-compose up -d resty
+```
+
+## 说明
 
 ### 两个共享内存
 
@@ -40,6 +49,10 @@
 
 * 自定义配置存放在 redis 中以 `waf:config:` 为开头的`hset` 中
 * 目前支持四个配置项, 硬编码在`shared.lua` 中, 分别为 `matcher`, `response`, `modules.filter.rules`, `modules.limiter.rules`
+
+### 参考项目
+
+* [VeryNginx](https://github.com/alexazhou/VeryNginx)
 
 ---
 
@@ -92,3 +105,4 @@
 ## Lua 手册
 
 * [Lua 5.4](https://www.lua.org/manual/5.4/)
+
