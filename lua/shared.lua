@@ -64,6 +64,7 @@ function _M.reload_limited()
             local identifier = res[i]
             local expiry = tonumber(res[i+1])
             if expiry < now then
+                ngx.shared.limiter:set(identifier, nil)
                 rds:zrem("waf:modules:limiter", identifier)
             else
                 ngx.shared.limiter:set(identifier, 999, expiry - now)
