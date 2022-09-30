@@ -42,13 +42,210 @@ docker-compose up -d resty
 ### manager 模块
 
 * 用于 waf 的管理, 提供以 /waf 开头的路由, 需要进行 Basic Authorizaton 认证
-* /waf/config, 获取当前应用的配置
-* /waf/config/reload, 立即更新配置
+* 默认账号密码 `waf:TTpsXHtI5mwq` 或者直接指定头信息 `Authorization: Basic d2FmOlRUcHNYSHRJNW13cQ==`
+* `/waf/config`, 获取当前配置
+* `/waf/config/refresh`, 立即更新配置
+* `/modules/limiter/refresh`, 立即更新ip/设备名单
 
-### 自定义配置
+### 默认配置
+
+```json
+{
+    "response": { // 响应配置,可新增可修改
+        "403": {
+            "mime_type": "application/json",
+            "status": 403,
+            "body": "{\"code\":\"403\", \"message\":\"403 Forbidden\"}"
+        }
+    },
+    "matcher": { // 请求匹配器,可新增可修改, 可匹配Header, Args, URI, UserAgent
+        "attack_agent": {
+            "UserAgent": {
+                "operator": "≈", // 匹配 UserAgent 包含 value 正则匹配的字符
+                "value": "(nmap|w3af|netsparker|nikto|fimap|wget)"
+            }
+        },
+        "any": {},
+        "app_version": {
+            "Header": { // 匹配请求头 X-App-Header
+                "name_value": "x-app-version",
+                "value": [
+                    "0.0.0"
+                ],
+                "operator": "#",
+                "name_operator": "="
+            }
+        },
+        "attack_sql": {
+            "Args": {
+                "value": "select.*from",
+                "operator": "≈",
+                "name_operator": "*"
+            }
+        },
+        "app_id": {
+            "Header": {
+                "name_value": "x-app-id",
+                "value": [
+                    0
+                ],
+                "operator": "#",
+                "name_operator": "="
+            }
+        },
+        "apis": {
+            "URI": {
+                "operator": "≈",
+                "value": "^v\\d+"
+            }
+        },
+        "attack_file_ext": {
+            "URI": {
+                "operator": "≈",
+                "value": "\\.(htaccess|bash_history|ssh|sql)$"
+            }
+        }
+    },
+    "modules": {
+        "manager": { // waf 配置,目前写死,不可自定义配置
+            "enable": true,
+            "auth": {
+                "user": "waf",
+                "pass": "TTpsXHtI5mwq"
+            }
+        },
+        "limiter": {
+            "enable": true,
+            "rules": [ // 请求频率限制规则, 可新增不可修改
+                {
+                    "code": 503,
+                    "matcher": "any",
+                    "enable": true,
+                    "separate": [
+                        "ip_list" // 限制出现在共享内存 limiter 的IP请求
+                    ]
+                },
+                {
+                    "code": 503,
+                    "matcher": "any",
+                    "enable": true,
+                    "separate": [
+                        "device_list" // 限制出现在共享内存 limiter 的设备号请求(由头X-Device-ID指定)
+                    ]
+                },
+                {
+                    "count": 60,
+                    "enable": true,
+                    "time": "60",
+                    "code": 503,
+                    "matcher": "apis", // 限制IP对特定接口的请求频次, 默认每个IP对匹配URI每分钟60次请求
+                    "separate": [
+                        "ip",
+                        "uri"
+                    ]
+                }
+            ]
+        },
+        "filter": {
+            "enable": true,
+            "rules": [ // 过滤器, 可新增不可修改
+                {
+                    "code": 503,
+                    "action": "block",
+                    "enable": true,
+                    "matcher": "attack_sql"
+                },
+                {
+                    "code": 503,
+                    "action": "block",
+                    "enable": true,
+                    "matcher": "attack_file_ext"
+                },
+                {
+                    "code": 503,
+                    "action": "block",
+                    "enable": true,
+                    "matcher": "attack_agent"
+                },
+                {
+                    "code": 503,
+                    "action": "block",
+                    "enable": true,
+                    "matcher": "app_id"
+                },
+                {
+                    "code": 503,
+                    "action": "block",
+                    "enable": true,
+                    "matcher": "app_version"
+                }
+            ]
+        }
+    }
+}
+```
+### 自定义配置(通过Redis)
+
+默认读取环境变量`REDIS_HOST`,`REDIS_PORT`,`REDIS_DB` 来获取redis配置, 否则从 `/data/.env` 读取
 
 * 自定义配置存放在 redis 中以 `waf:config:` 为开头的`hset` 中
 * 目前支持四个配置项, 硬编码在`shared.lua` 中, 分别为 `matcher`, `response`, `modules.filter.rules`, `modules.limiter.rules`
+* 维护的IP名单和设备名单放在 redis `waf:modules:limiter` 的 `zset` 中
+
+**0.维护IP/设备号名单**
+
+```shell
+// 限制设备号`X-Device-ID` = `f14268d542f919d5` 在到达Unix时间戳 `1664521948` 之前的访问
+zadd waf:modules:limiter 1664521948 f14268d542f919d5
+// 限制IP `13.251.156.174` 在到达Unix时间戳 `1664521948` 之前的访问
+zadd waf:modules:limiter 1664521948 13.251.156.174
+// 重载配置
+curl --request POST '{YourDomain}/waf/modules/limiter/refresh' --header 'Authorization: Basic d2FmOlRUcHNYSHRJNW13cQ=='
+```
+
+**1. 修改 matcher**
+
+可增加配置,也可修改默认配置
+
+```shell
+// 匹配头部参数 X-App-ID = 4 的请求
+hset waf:config:matcher app_id '{"Header":{"operator":"#","name_value":"x-app-id","value":[4],"name_operator":"="}}'
+// 匹配 UserAgent 包含 "postman" 的请求
+hset waf:config:matcher attack_agent '{"UserAgent":{"value":"(postman)","operator":"≈"}}'
+// 重载配置
+curl --request POST '{YourDomain}/waf/config/refresh' --header 'Authorization: Basic d2FmOlRUcHNYSHRJNW13cQ=='
+```
+**2. 修改 response**
+
+可增加配置,也可修改默认配置
+
+```shell
+// Redis 命令
+hset waf:config:response 503 '{"status":503,"mime_type":"application/json","body":"{\"code\":\"503\", \"message\":\"Custom Message\"}"}'
+// 重载配置
+curl --request POST '{YourDomain}/waf/config/refresh' --header 'Authorization: Basic d2FmOlRUcHNYSHRJNW13cQ=='
+```
+**3. 增加 modules.filter.rules**
+
+只支持增加配置,不支持修改默认配置
+
+```shell
+// Redis 命令
+hset waf:config:modules.filter.rules 0 '{"enable":true,"matcher":"app_id","action":"block","code":403}'
+// 重载配置
+curl --request POST '{YourDomain}/waf/config/refresh' --header 'Authorization: Basic d2FmOlRUcHNYSHRJNW13cQ=='
+```
+
+**4. 增加 modules.limiter.rules**
+
+只支持增加配置,不支持修改默认配置
+
+```shell
+// Redis 命令
+hset waf:config:modules.limiter.rules 0 'JSON格式数据'
+// 重载配置
+curl --request POST '{YourDomain}/waf/config/refresh' --header 'Authorization: Basic d2FmOlRUcHNYSHRJNW13cQ=='
+```
 
 ### 参考项目
 
