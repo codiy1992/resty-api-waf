@@ -45,7 +45,7 @@ docker-compose up -d resty
 * 默认账号密码 `waf:TTpsXHtI5mwq` 或者直接指定头信息 `Authorization: Basic d2FmOlRUcHNYSHRJNW13cQ==`
 * `/waf/config`, 获取当前配置
 * `/waf/config/refresh`, 立即更新配置
-* `/modules/limiter/refresh`, 立即更新ip/设备名单
+* `/waf/modules/limiter/refresh`, 立即更新ip/设备名单
 
 ### 默认配置
 
