@@ -107,16 +107,16 @@ docker-compose up -d resty
         }
     },
     "modules": {
-        "manager": { // waf 配置,目前写死,不可自定义配置
+        "manager": { // waf 配置
             "enable": true,
-            "auth": {
+            "auth": { // waf 接口的 Basic Authentication 账号密码, 可通过设置对应 redis 键值对来修改
                 "user": "waf",
                 "pass": "TTpsXHtI5mwq"
             }
         },
         "limiter": {
             "enable": true,
-            "rules": [ // 请求频率限制规则, 可新增不可修改
+            "rules": [ // 请求频率限制规则, 可新增可修改
                 {
                     "code": 503,
                     "matcher": "any",
@@ -135,7 +135,7 @@ docker-compose up -d resty
                 },
                 {
                     "count": 60,
-                    "enable": true,
+                    "enable": false,
                     "time": "60",
                     "code": 503,
                     "matcher": "apis", // 限制IP对特定接口的请求频次, 默认每个IP对匹配URI每分钟60次请求
@@ -148,7 +148,7 @@ docker-compose up -d resty
         },
         "filter": {
             "enable": true,
-            "rules": [ // 过滤器, 可新增不可修改
+            "rules": [ // 过滤器, 可新增可修改
                 {
                     "code": 503,
                     "action": "block",
@@ -170,13 +170,13 @@ docker-compose up -d resty
                 {
                     "code": 503,
                     "action": "block",
-                    "enable": true,
+                    "enable": false,
                     "matcher": "app_id"
                 },
                 {
                     "code": 503,
                     "action": "block",
-                    "enable": true,
+                    "enable": false,
                     "matcher": "app_version"
                 }
             ]
@@ -189,7 +189,7 @@ docker-compose up -d resty
 默认读取环境变量`REDIS_HOST`,`REDIS_PORT`,`REDIS_DB` 来获取redis配置, 否则从 `/data/.env` 读取
 
 * 自定义配置存放在 redis 中以 `waf:config:` 为开头的`hset` 中
-* 目前支持四个配置项, 硬编码在`shared.lua` 中, 分别为 `matcher`, `response`, `modules.filter.rules`, `modules.limiter.rules`
+* 目前支持五个配置项, 硬编码在`shared.lua` 中, 分别为 `matcher`, `response`, `modules.manager`, `modules.filter.rules`, `modules.limiter.rules`
 * 维护的IP名单和设备名单放在 redis `waf:modules:limiter` 的 `zset` 中
 
 **0.维护IP/设备号名单**
@@ -225,7 +225,7 @@ hset waf:config:response 503 '{"status":503,"mime_type":"application/json","body
 // 重载配置
 curl --request POST '{YourDomain}/waf/config/refresh' --header 'Authorization: Basic d2FmOlRUcHNYSHRJNW13cQ=='
 ```
-**3. 增加 modules.filter.rules**
+**3. 修改 modules.filter.rules**
 
 只支持增加配置,不支持修改默认配置
 
@@ -236,13 +236,22 @@ hset waf:config:modules.filter.rules 0 '{"enable":true,"matcher":"app_id","actio
 curl --request POST '{YourDomain}/waf/config/refresh' --header 'Authorization: Basic d2FmOlRUcHNYSHRJNW13cQ=='
 ```
 
-**4. 增加 modules.limiter.rules**
+**4. 修改 modules.limiter.rules**
 
 只支持增加配置,不支持修改默认配置
 
 ```shell
 // Redis 命令
-hset waf:config:modules.limiter.rules 0 'JSON格式数据'
+hset waf:config:modules.limiter.rules 0 '{"time":"5","count":1,"enable":true,"code":503,"separate":["ip","uri"],"matcher":"apis"}'
+// 重载配置
+curl --request POST '{YourDomain}/waf/config/refresh' --header 'Authorization: Basic d2FmOlRUcHNYSHRJNW13cQ=='
+```
+
+**5. 修改 modules.manager**
+
+```shell
+// Redis 命令
+hset waf:config:modules.manager auth '{"user": "test", "pass": "123" }'
 // 重载配置
 curl --request POST '{YourDomain}/waf/config/refresh' --header 'Authorization: Basic d2FmOlRUcHNYSHRJNW13cQ=='
 ```

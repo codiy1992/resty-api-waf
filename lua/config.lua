@@ -6,8 +6,8 @@ local _M = {
                 {["matcher"] = 'attack_sql', ["action"] = "block", ["code"] = 503, ["enable"] = true },
                 {["matcher"] = 'attack_file_ext', ["action"] = "block", ["code"] = 503, ["enable"] = true },
                 {["matcher"] = 'attack_agent', ["action"] = "block", ["code"] = 503, ["enable"] = true },
-                {["matcher"] = 'app_id', ["action"] = "block", ["code"] = 503, ["enable"] = true },
-                {["matcher"] = 'app_version', ["action"] = "block", ["code"] = 503, ["enable"] = true },
+                {["matcher"] = 'app_id', ["action"] = "block", ["code"] = 503, ["enable"] = false },
+                {["matcher"] = 'app_version', ["action"] = "block", ["code"] = 503, ["enable"] = false },
             },
         },
         ["limiter"] = {
@@ -15,7 +15,7 @@ local _M = {
             ["rules"] = {
                 {["matcher"] = 'any', ["separate"] = {"ip_list"}, ["code"] = 503, ["enable"] = true },
                 {["matcher"] = 'any', ["separate"] = {"device_list"}, ["code"] = 503, ["enable"] = true },
-                {["matcher"] = 'apis', ["separate"] = {"ip", "uri"}, ["time"] = '60', ["count"] = 60, ["code"] = 503, ["enable"] = true },
+                {["matcher"] = 'apis', ["separate"] = {"ip", "uri"}, ["time"] = '60', ["count"] = 60, ["code"] = 503, ["enable"] = false},
             }
         },
         ["manager"] = {
