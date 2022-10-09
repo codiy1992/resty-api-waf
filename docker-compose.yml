@@ -9,6 +9,6 @@ services:
     volumes:
       - ${PWD}/lua:/usr/local/openresty/nginx/lua
       - ${PWD}/nginx.conf:/usr/local/openresty/nginx/conf/nginx.conf
-      - ${PWD}/sites.d/default.conf:/usr/local/openresty/nginx/conf/sites.d/default.conf
+      - ${PWD}/sites.d/laravel.conf:/usr/local/openresty/nginx/conf/sites.d/default.conf
     network_mode: host
     privileged: true
