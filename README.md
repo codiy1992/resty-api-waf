@@ -227,7 +227,7 @@ curl --request POST '{YourDomain}/waf/config/refresh' --header 'Authorization: B
 ```
 **3. 修改 modules.filter.rules**
 
-只支持增加配置,不支持修改默认配置
+可增加配置,也可修改默认配置
 
 ```shell
 // Redis 命令
@@ -238,7 +238,7 @@ curl --request POST '{YourDomain}/waf/config/refresh' --header 'Authorization: B
 
 **4. 修改 modules.limiter.rules**
 
-只支持增加配置,不支持修改默认配置
+可增加配置,也可修改默认配置
 
 ```shell
 // Redis 命令
