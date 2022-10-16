@@ -51,52 +51,19 @@ docker-compose up -d resty
 
 ```json
 {
-    "response": { // 响应配置,可新增可修改
-        "403": {
+    "response": { // 响应规则, 可新增可修改
+        "403": { // code
             "mime_type": "application/json",
-            "status": 403,
+            "status": 403, // http status code
             "body": "{\"code\":\"403\", \"message\":\"403 Forbidden\"}"
         }
     },
-    "matcher": { // 请求匹配器,可新增可修改, 可匹配Header, Args, URI, UserAgent
-        "attack_agent": {
-            "UserAgent": {
-                "operator": "≈", // 匹配 UserAgent 包含 value 正则匹配的字符
-                "value": "(nmap|w3af|netsparker|nikto|fimap|wget)"
-            }
-        },
-        "any": {},
-        "app_version": {
-            "Header": { // 匹配请求头 X-App-Header
-                "name_value": "x-app-version",
-                "value": [
-                    "0.0.0"
-                ],
-                "operator": "#",
-                "name_operator": "="
-            }
-        },
+    "matcher": { // 请求匹配器,可新增可修改, 可匹配Header, Args, URI, UserAgent, IP等
         "attack_sql": {
             "Args": {
-                "value": "select.*from",
-                "operator": "≈",
+                "operator": "≈", // 字符串是否包含value
+                "value": "select.*from", // 字符串｜正则表达式
                 "name_operator": "*"
-            }
-        },
-        "app_id": {
-            "Header": {
-                "name_value": "x-app-id",
-                "value": [
-                    0
-                ],
-                "operator": "#",
-                "name_operator": "="
-            }
-        },
-        "apis": {
-            "URI": {
-                "operator": "≈",
-                "value": "^v\\d+"
             }
         },
         "attack_file_ext": {
@@ -104,80 +71,142 @@ docker-compose up -d resty
                 "operator": "≈",
                 "value": "\\.(htaccess|bash_history|ssh|sql)$"
             }
-        }
-    },
-    "modules": {
-        "manager": { // waf 配置
-            "enable": true,
-            "auth": { // waf 接口的 Basic Authentication 账号密码, 可通过设置对应 redis 键值对来修改
-                "user": "waf",
-                "pass": "TTpsXHtI5mwq"
+        },
+        "attack_agent": {
+            "UserAgent": {
+                "operator": "≈",
+                "value": "(nmap|w3af|netsparker|nikto|fimap|wget)"
             }
         },
-        "limiter": {
+        "app_id": {
+            "Header": {
+                "name_value": "x-app-id",
+                "name_operator": "=",
+                "operator": "#", // 过滤出x-app-id的值包含在value中的请求
+                "value": [
+                    0
+                ]
+            }
+        },
+        "app_version": {
+            "Header": {
+                "operator": "#",
+                "name_value": "x-app-version", // 过滤出x-app-version的值包含在value中的请求
+                "value": [
+                    "0.0.0"
+                ],
+                "name_operator": "="
+            }
+        },
+        "any": {} // 指代任意请求
+    },
+    "modules": {
+        "manager": { // waf 接口的 Basic Authentication 账号密码
+            "auth": {
+                "pass": "TTpsXHtI5mwq",
+                "user": "waf"
+            },
+            "enable": true
+        },
+        "filter": { // 请求过滤规则
             "enable": true,
-            "rules": [ // 请求频率限制规则, 可新增可修改
-                {
-                    "code": 503,
-                    "matcher": "any",
+            "rules": [
+                { // 对于任意请求, 客户端IP包含在filter名单中的,执行block操作,返回403
                     "enable": true,
-                    "separate": [
-                        "ip_list" // 限制出现在共享内存 limiter 的IP请求
-                    ]
+                    "action": "block",
+                    "code": 403,
+                    "by": "ip", // 可选值 ip|uid|device, 不指定则不使用`ngx.shared.filter`维护的名单
+                    "matcher": "any"
+                },
+                { // 对于任意请求, 头信息X-Device-ID包含在filter名单中的,执行block操作,返回403
+                    "enable": true,
+                    "action": "block",
+                    "code": 403,
+                    "by": "device",
+                    "matcher": "any"
+                },
+                { // 对于任意请求, Authorizaton UserID 包含在filter名单中的,执行block操作,返回403
+                    "enable": true,
+                    "action": "block",
+                    "code": 403,
+                    "by": "uid",
+                    "matcher": "any"
+                },
+                { // 匹配attack_sql的请求并拒绝
+                    "enable": true,
+                    "action": "block",
+                    "matcher": "attack_sql",
+                    "code": 403
+                },
+                { // 匹配attack_file_ext的请求并拒绝
+                    "enable": true,
+                    "action": "block",
+                    "matcher": "attack_file_ext",
+                    "code": 403
                 },
                 {
-                    "code": 503,
-                    "matcher": "any",
                     "enable": true,
-                    "separate": [
-                        "device_list" // 限制出现在共享内存 limiter 的设备号请求(由头X-Device-ID指定)
-                    ]
+                    "action": "block",
+                    "matcher": "attack_agent",
+                    "code": 403
                 },
                 {
-                    "count": 60,
                     "enable": false,
-                    "time": "60",
-                    "code": 503,
-                    "matcher": "apis", // 限制IP对特定接口的请求频次, 默认每个IP对匹配URI每分钟60次请求
-                    "separate": [
-                        "ip",
-                        "uri"
-                    ]
+                    "action": "block",
+                    "matcher": "app_id",
+                    "code": 403
+                },
+                {
+                    "enable": false,
+                    "action": "block",
+                    "matcher": "app_version",
+                    "code": 403
                 }
             ]
         },
-        "filter": {
+        "limiter": {
             "enable": true,
-            "rules": [ // 过滤器, 可新增可修改
-                {
-                    "code": 503,
-                    "action": "block",
-                    "enable": true,
-                    "matcher": "attack_sql"
+            "rules": [
+                { // 匹配任意请求, 根据IP限制频率, 每60秒允许60次请求, 超过则拒绝
+                    "matcher": "any",
+                    "count": 60,
+                    "code": 403,
+                    "by": "ip", // 可选值 ip|uri|uid|device, 及其组合(以","间隔)
+                    "time": 60,
+                    "enable": false
                 },
-                {
-                    "code": 503,
-                    "action": "block",
-                    "enable": true,
-                    "matcher": "attack_file_ext"
+                { // 匹配任意请求, 根据uri限制频率, 每60秒允许60次请求, 超过则拒绝
+                    "matcher": "any",
+                    "count": 60,
+                    "code": 403,
+                    "by": "uri",
+                    "time": 60,
+                    "enable": false
                 },
-                {
-                    "code": 503,
-                    "action": "block",
-                    "enable": true,
-                    "matcher": "attack_agent"
-                },
-                {
-                    "code": 503,
-                    "action": "block",
+                { // 匹配任意请求, 根据ip,uri限制频率(即每个IP对每个URI每分钟限请求60次)
+                    "matcher": "any",
+                    "count": 60,
+                    "code": 403,
+                    "by": "ip,uri",
+                    "time": 60,
+                    "enable": false
+                }
+            ]
+        },
+        "counter": {
+            "enable": true,
+            "rules": [
+                { // 匹配任意请求,统计每个IP对每个URI的请求次数
                     "enable": false,
-                    "matcher": "app_id"
+                    "by": "ip,uri", // 可选值: ip|device|uid|uri 及其组合(以","间隔)
+                    "time": 60, // 统计间隔 单位:秒
+                    "matcher": "any"
                 },
                 {
-                    "code": 503,
-                    "action": "block",
                     "enable": false,
-                    "matcher": "app_version"
+                    "by": "uid",
+                    "time": 60,
+                    "matcher": "any"
                 }
             ]
         }

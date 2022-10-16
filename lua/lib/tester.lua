@@ -121,8 +121,14 @@ function _M.test_uri( condition )
 end
 
 function _M.test_ip( condition )
-    local remote_addr = ngx.var.remote_addr
-    return _M.test_var( condition['operator'], condition['value'], remote_addr )
+    local ipv4 = ngx.req.get_headers()["X-Real-IP"]
+    if ipv4 == nil then
+        ipv4 = ngx.req.get_headers()["X-Forwarded-For"]
+    end
+    if ipv4 == nil then
+        ipv4 = ngx.var.remote_addr
+    end
+    return _M.test_var( condition['operator'], condition['value'], ipv4 )
 end
 
 function _M.test_ua( condition )

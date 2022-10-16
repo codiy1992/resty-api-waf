@@ -3,19 +3,29 @@ local _M = {
         ["filter"] = {
             ["enable"] = true,
             ["rules"] = {
-                {["matcher"] = 'attack_sql', ["action"] = "block", ["code"] = 503, ["enable"] = true },
-                {["matcher"] = 'attack_file_ext', ["action"] = "block", ["code"] = 503, ["enable"] = true },
-                {["matcher"] = 'attack_agent', ["action"] = "block", ["code"] = 503, ["enable"] = true },
-                {["matcher"] = 'app_id', ["action"] = "block", ["code"] = 503, ["enable"] = false },
-                {["matcher"] = 'app_version', ["action"] = "block", ["code"] = 503, ["enable"] = false },
+                {["matcher"] = 'any', ["by"] = "ip", ["action"] = "block", ["code"] = 403, ["enable"] = true },
+                {["matcher"] = 'any', ["by"] = "device", ["action"] = "block", ["code"] = 403, ["enable"] = true },
+                {["matcher"] = 'any', ["by"] = "uid", ["action"] = "block", ["code"] = 403, ["enable"] = true },
+                {["matcher"] = 'attack_sql', ["action"] = "block", ["code"] = 403, ["enable"] = true },
+                {["matcher"] = 'attack_file_ext', ["action"] = "block", ["code"] = 403, ["enable"] = true },
+                {["matcher"] = 'attack_agent', ["action"] = "block", ["code"] = 403, ["enable"] = true },
+                {["matcher"] = 'app_id', ["action"] = "block", ["code"] = 403, ["enable"] = false },
+                {["matcher"] = 'app_version', ["action"] = "block", ["code"] = 403, ["enable"] = false },
             },
         },
         ["limiter"] = {
             ["enable"] = true,
             ["rules"] = {
-                {["matcher"] = 'any', ["separate"] = {"ip_list"}, ["code"] = 503, ["enable"] = true },
-                {["matcher"] = 'any', ["separate"] = {"device_list"}, ["code"] = 503, ["enable"] = true },
-                {["matcher"] = 'apis', ["separate"] = {"ip", "uri"}, ["time"] = '60', ["count"] = 60, ["code"] = 503, ["enable"] = false},
+                {["matcher"] = 'any', ["by"] = "ip", ["time"] = 60, ["count"] = 60, ["code"] = 403, ["enable"] = false },
+                {["matcher"] = 'any', ["by"] = "uri", ["time"] = 60, ["count"] = 60, ["code"] = 403, ["enable"] = false },
+                {["matcher"] = 'any', ["by"] = "ip,uri", ["time"] = 60, ["count"] = 60, ["code"] = 403, ["enable"] = false},
+            }
+        },
+        ["counter"] = {
+            ["enable"] = true,
+            ["rules"] = {
+                {["matcher"] = 'any', ["by"] = "ip,uri", ["time"] = 60, ["enable"] = false },
+                {["matcher"] = 'any', ["by"] = "uid",["time"] = 60, ["enable"] = false },
             }
         },
         ["manager"] = {
@@ -28,12 +38,6 @@ local _M = {
     },
     ["matcher"] = {
         ["any"] = {},
-        ["apis"] = {
-            ["URI"] = {
-                ['operator'] = "≈",
-                ['value']="^v\\d+",
-            },
-        },
         ["attack_sql"] = {
             ["Args"] = {
                 ['name_operator'] = "*",

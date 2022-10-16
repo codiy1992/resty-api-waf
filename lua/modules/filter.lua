@@ -1,6 +1,8 @@
 local _M = {}
 
+local comm = require "lib.comm"
 local request_tester = require "lib.tester"
+local filter = ngx.shared.filter
 
 function _M.run(config)
     if ngx.req.is_internal() == true then
@@ -16,28 +18,39 @@ function _M.run(config)
     for i,rule in ipairs(config.modules.filter.rules) do
         local enable = rule['enable']
         local matcher = matcher_list[ rule['matcher'] ]
+        local action = rule['action']
         if enable == true and request_tester.test( matcher ) == true then
-            local action = rule['action']
+            if rule['by'] ~= nil and rule['by'] == 'ip' then
+                local client_ip = comm.get_client_ip()
+                if client_ip ~= nil and filter:get(client_ip) ~= nil then
+                    if action ~= 'accept' then
+                        comm.response(response_list, rule['code'])
+                    end
+                end
+                goto continue
+            end
+            if rule['by'] ~= nil and rule['by'] == 'device' then
+                local device_id = comm.get_device_id()
+                if device_id ~= nil and filter:get(string.lower(device_id)) ~= nil then
+                    if action ~= 'accept' then
+                        comm.response(response_list, rule['code'])
+                    end
+                end
+                goto continue
+            end
+            if rule['by'] ~= nil and rule['by'] == 'uid' then
+                local uid = comm.get_user_id()
+                if uid ~= nil and filter:get(string.lower(uid)) ~= nil then
+                    if action ~= 'accept' then
+                        comm.response(response_list, rule['code'])
+                    end
+                end
+                goto continue
+            end
             if action == 'accept' then
                 goto continue
             else
-                if rule['response'] ~= nil then
-                    response = response_list[tostring(rule['response'])]
-                else
-                    response = response_list[tostring(rule['code'])]
-                end
-                if response ~= nil then
-                    ngx.status = tonumber(response['status'] or rule['code'])
-                    ngx.header.content_type = response['mime_type']
-                    ngx.say( response['body'] )
-                    ngx.exit(ngx.HTTP_OK)
-                else
-                    if rule['code'] ~= nil then
-                        ngx.exit( tonumber( rule['code'] ) )
-                    else
-                        ngx.exit(ngx.HTTP_SERVICE_UNAVAILABLE)
-                    end
-                end
+                comm.response(response_list, rule['code'])
             end
         end
         ::continue::
