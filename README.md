@@ -225,11 +225,11 @@ docker-compose up -d resty
 
 ```shell
 // 限制设备号`X-Device-ID` = `f14268d542f919d5` 在到达Unix时间戳 `1664521948` 之前的访问
-zadd waf:modules:limiter 1664521948 f14268d542f919d5
+zadd waf:modules:filter 1664521948 f14268d542f919d5
 // 限制IP `13.251.156.174` 在到达Unix时间戳 `1664521948` 之前的访问
-zadd waf:modules:limiter 1664521948 13.251.156.174
+zadd waf:modules:filter 1664521948 13.251.156.174
 // 重载配置
-curl --request POST '{YourDomain}/waf/modules/limiter/refresh' --header 'Authorization: Basic d2FmOlRUcHNYSHRJNW13cQ=='
+curl --request POST '{YourDomain}/waf/modules/filter/reload' --header 'Authorization: Basic d2FmOlRUcHNYSHRJNW13cQ=='
 ```
 
 **1. 修改 matcher**

@@ -194,7 +194,7 @@ _M.routes = {
     { ['method'] = "POST", ["path"] = "/config", ['handle'] = _M.config_set},
     { ['method'] = "POST", ["path"] = "/config/reload", ['handle'] = _M.config_reload},
     { ['method'] = "POST", ["path"] = "/modules/counter/dump", ['handle'] = _M.dump_counter},
-    { ['method'] = "POST", ["path"] = "/modules/filter/reload", ['handle'] = _M.filter_reload},
+    { ['method'] = "POST", ["path"] = "/modules/filter/list/reload", ['handle'] = _M.filter_reload},
     { ['method'] = "GET", ["path"] = "/status", ['handle'] = _M.status_get},
 }
 
