@@ -63,7 +63,7 @@ function _M.reload_config()
     return config
 end
 
-function _M.reload_filter_list()
+function _M.reload_list()
     redis.exec(function (rds)
         local res, err = rds:zrange("waf:list", 0, -1, 'WITHSCORES');
         if err then
@@ -78,7 +78,7 @@ function _M.reload_filter_list()
                 ngx.shared.list:set(identifier, nil)
                 rds:zrem("waf:list", identifier)
             else
-                ngx.shared.list:set(identifier, 999, expiry - now)
+                ngx.shared.list:set(identifier, 1, expiry - now)
             end
         end
 
