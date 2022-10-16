@@ -128,7 +128,7 @@ function _M.dump_counter(config)
                         data[time][by][key] = total
                     end
                 elseif inputs['by']  ~= nil and inputs['time'] ~= nil then
-                    if inputs['by'] == by and inputs['time'] == time then
+                    if inputs['by'] == by and to_number(inputs['time']) == time then
                         data[time][by][key] = total
                     end
                 else

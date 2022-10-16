@@ -43,9 +43,11 @@ docker-compose up -d resty
 
 * 用于 waf 的管理, 提供以 /waf 开头的路由, 需要进行 Basic Authorizaton 认证
 * 默认账号密码 `waf:TTpsXHtI5mwq` 或者直接指定头信息 `Authorization: Basic d2FmOlRUcHNYSHRJNW13cQ==`
-* `/waf/config`, 获取当前配置
-* `/waf/config/refresh`, 立即更新配置
-* `/waf/modules/limiter/refresh`, 立即更新ip/设备名单
+* `/waf/config`, GET 获取当前配置
+* `/waf/config`, POST 临时变更配置, 在nginx重启前或执行`/waf/config/reload` 前有效
+* `/waf/config/reload`, 立即更新配置
+* `/waf/list/reload`, 立即更新ip/设备名单
+* `/modules/counter/dump` 输出请求计数器统计情况
 
 ### 默认配置
 
@@ -115,21 +117,21 @@ docker-compose up -d resty
                     "enable": true,
                     "action": "block",
                     "code": 403,
-                    "by": "ip", // 可选值 ip|uid|device, 不指定则不使用`ngx.shared.filter`维护的名单
+                    "by": "ip:in_list", // 可选值 ip|uid|device + in_list|not_in_list, 不指定则不使用`ngx.shared.list`维护的名单
                     "matcher": "any"
                 },
                 { // 对于任意请求, 头信息X-Device-ID包含在filter名单中的,执行block操作,返回403
                     "enable": true,
                     "action": "block",
                     "code": 403,
-                    "by": "device",
+                    "by": "device:in_list",
                     "matcher": "any"
                 },
                 { // 对于任意请求, Authorizaton UserID 包含在filter名单中的,执行block操作,返回403
                     "enable": true,
                     "action": "block",
                     "code": 403,
-                    "by": "uid",
+                    "by": "uid:in_list",
                     "matcher": "any"
                 },
                 { // 匹配attack_sql的请求并拒绝
@@ -218,12 +220,13 @@ docker-compose up -d resty
 默认读取环境变量`REDIS_HOST`,`REDIS_PORT`,`REDIS_DB` 来获取redis配置, 否则从 `/data/.env` 读取
 
 * 自定义配置存放在 redis 中以 `waf:config:` 为开头的`hset` 中
-* 目前支持五个配置项, 硬编码在`shared.lua` 中, 分别为 `matcher`, `response`, `modules.manager`, `modules.filter.rules`, `modules.limiter.rules`
-* 维护的IP名单和设备名单放在 redis `waf:modules:limiter` 的 `zset` 中
+* 目前支持六个配置项, 硬编码在`shared.lua` 中, 分别为 `matcher`, `response`, `modules.manager.auth`, `modules.filter.rules`, `modules.limiter.rules`, `modules.counter.rules`
+* 维护的IP名单和设备名单放在 redis `waf:list` 的 `zset` 中
 
 **0.维护IP/设备号名单**
 
 ```shell
+// 示例一: 限制访问
 // 限制设备号`X-Device-ID` = `f14268d542f919d5` 在到达Unix时间戳 `1664521948` 之前的访问
 zadd waf:list 1664521948 f14268d542f919d5
 // 限制IP `13.251.156.174` 在到达Unix时间戳 `1664521948` 之前的访问
@@ -231,7 +234,7 @@ zadd waf:list 1664521948 13.251.156.174
 // 重载配置
 curl --request POST '{YourDomain}/waf/list/reload' --header 'Authorization: Basic d2FmOlRUcHNYSHRJNW13cQ=='
 
-// 只允许在list中的IP访问
+// 示例二: 只允许在list中的IP访问
 // 先排除
 hset waf:config:modules.filter.rules 0 '{"matcher":"any","action":"block","enable":true,"by":"ip:not_in_list"}'
 // 在包含
@@ -252,7 +255,7 @@ hset waf:config:matcher app_id '{"Header":{"operator":"#","name_value":"x-app-id
 // 匹配 UserAgent 包含 "postman" 的请求
 hset waf:config:matcher attack_agent '{"UserAgent":{"value":"(postman)","operator":"≈"}}'
 // 重载配置
-curl --request POST '{YourDomain}/waf/config/refresh' --header 'Authorization: Basic d2FmOlRUcHNYSHRJNW13cQ=='
+curl --request POST '{YourDomain}/waf/config/reload' --header 'Authorization: Basic d2FmOlRUcHNYSHRJNW13cQ=='
 ```
 **2. 修改 response**
 
@@ -270,9 +273,9 @@ curl --request POST '{YourDomain}/waf/config/refresh' --header 'Authorization: B
 
 ```shell
 // Redis 命令
-hset waf:config:modules.filter.rules 0 '{"enable":true,"matcher":"app_id","action":"block","code":403}'
+hset waf:config:modules.filter.rules 0 '{"matcher":"any","action":"block","enable":true,"by":"ip:not_in_list"}'
 // 重载配置
-curl --request POST '{YourDomain}/waf/config/refresh' --header 'Authorization: Basic d2FmOlRUcHNYSHRJNW13cQ=='
+curl --request POST '{YourDomain}/waf/config/reload' --header 'Authorization: Basic d2FmOlRUcHNYSHRJNW13cQ=='
 ```
 
 **4. 修改 modules.limiter.rules**
@@ -281,12 +284,23 @@ curl --request POST '{YourDomain}/waf/config/refresh' --header 'Authorization: B
 
 ```shell
 // Redis 命令
-hset waf:config:modules.limiter.rules 0 '{"time":"5","count":1,"enable":true,"code":503,"separate":["ip","uri"],"matcher":"apis"}'
+hset waf:config:modules.limiter.rules 0 '{"code":403,"count":60,"time":60,"matcher":"any","by":"ip","enable":true}'
 // 重载配置
-curl --request POST '{YourDomain}/waf/config/refresh' --header 'Authorization: Basic d2FmOlRUcHNYSHRJNW13cQ=='
+curl --request POST '{YourDomain}/waf/config/reload' --header 'Authorization: Basic d2FmOlRUcHNYSHRJNW13cQ=='
 ```
 
-**5. 修改 modules.manager**
+**5. 修改 modules.counter.rules**
+
+可增加配置,也可修改默认配置
+
+```shell
+// Redis 命令
+hset waf:config:modules.counter.rules 0 '{"matcher":"any","by":"ip,uri","time":60,"enable":true}'
+// 重载配置
+curl --request POST '{YourDomain}/waf/config/reload' --header 'Authorization: Basic d2FmOlRUcHNYSHRJNW13cQ=='
+```
+
+**6. 修改 modules.manager**
 
 ```shell
 // Redis 命令
