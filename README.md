@@ -14,10 +14,12 @@ docker-compose up -d resty
 
 ## 说明
 
-### 两个共享内存
+### 几个共享内存
 
-* `lua_shared_dict waf 1m;` 存放 waf 配置等信息
-* `lua_shared_dict limiter 10m;` 存放请求频率限制器信息
+* `lua_shared_dict waf 32k;` 存放 waf 配置等信息
+* `lua_shared_dict list 10m;` 存放ip/device/uid名单, 可用于filter模块指定by参数如`ip:in_list`
+* `lua_shared_dict limiter 10m;` 存放请求频率限制信息
+* `lua_shared_dict counter 10m;` 存放请求次数统计信息
 
 ### 执行流程
 
@@ -39,15 +41,39 @@ docker-compose up -d resty
 * 用于建立请求频率限制
 * 可设立仅针对IP的规则, 也可设立仅针对uri的规则, 默认为ip + uri 合并的规则
 
+### counter 模块
+
+* 统计请求次数
+* 可根据ip,device,uid,uri及其任意组合如`ip,uri`, `uri,ip`,来统计
+* 如设定`ip,uri`可以以同一IP下不同URI请求次数来观察请求
+* 如设定`uri,ip`则以同一URI下不同IP的请求次数
+* 如此类推
+
+**查看请求计数器统计数据**
+
+```shell
+curl --location --request POST '127.0.0.1/waf/modules/counter/dump' \
+--header 'Content-Type: application/json' \
+--header 'Authorization: Basic d2FmOlRUcHNYSHRJNW13cQ==' \
+--data-raw '{
+    "count": 1, // 请求数量 >= 1, 当指定key时自动忽略
+    "scale": 1024, // 数据规模设置为0可去全部统计数据,默认1024
+    "by": "ip:172.23.0.1;uri", // 分组, 当指定key时自动忽略
+    "time": 60, // 时间长度, 当指定key时自动忽略
+    "key": "60;ip:172.23.0.1;uri:/waf/modules/counter/dump" // 完整的统计key
+}'
+```
+
 ### manager 模块
 
 * 用于 waf 的管理, 提供以 /waf 开头的路由, 需要进行 Basic Authorizaton 认证
 * 默认账号密码 `waf:TTpsXHtI5mwq` 或者直接指定头信息 `Authorization: Basic d2FmOlRUcHNYSHRJNW13cQ==`
+* `/waf/status`, GET 获取状态信息
 * `/waf/config`, GET 获取当前配置
 * `/waf/config`, POST 临时变更配置, 在nginx重启前或执行`/waf/config/reload` 前有效
-* `/waf/config/reload`, 立即更新配置
-* `/waf/list/reload`, 立即更新ip/设备名单
-* `/modules/counter/dump` 输出请求计数器统计情况
+* `/waf/config/reload`, POST 立即更新配置
+* `/waf/list/reload`, POST 立即更新ip/设备名单
+* `/modules/counter/dump`, POST 输出请求计数器统计情况
 
 ### 默认配置
 
@@ -339,21 +365,6 @@ curl --request POST '{YourDomain}/waf/config/reload' --header 'Authorization: Ba
 hset waf:config:modules.manager auth '{"user": "test", "pass": "123" }'
 // 重载配置
 curl --request POST '{YourDomain}/waf/config/refresh' --header 'Authorization: Basic d2FmOlRUcHNYSHRJNW13cQ=='
-```
-
-### 查看请求计数器统计数据
-
-```shell
-curl --location --request POST '127.0.0.1/waf/modules/counter/dump' \
---header 'Content-Type: application/json' \
---header 'Authorization: Basic d2FmOlRUcHNYSHRJNW13cQ==' \
---data-raw '{
-    "count": 1, // 请求数量 >= 1, 当指定key时自动忽略
-    "scale": 1024, // 数据规模设置为0可去全部统计数据,默认1024
-    "by": "ip:172.23.0.1;uri", // 分组, 当指定key时自动忽略
-    "time": 60, // 时间长度, 当指定key时自动忽略
-    "key": "60;ip:172.23.0.1;uri:/waf/modules/counter/dump" // 完整的统计key
-}'
 ```
 
 ### 参考项目
