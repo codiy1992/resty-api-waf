@@ -78,8 +78,8 @@ function _M.config_reload()
     return require('cjson').encode(require("shared").reload_config())
 end
 
-function _M.filter_reload()
-    require("shared").reload_filter()
+function _M.list_reload()
+    require("shared").reload_list()
     return require('cjson').encode({["code"] = 200, ["message"] = "success"})
 end
 
@@ -173,9 +173,9 @@ function _M.status_get()
                 ["free"] = ngx.shared.waf:free_space()/1024,
                 ["capacity"] = ngx.shared.waf:capacity()/1024,
             },
-            ["filter"] = {
-                ["free"] = ngx.shared.filter:free_space()/1024,
-                ["capacity"] = ngx.shared.filter:capacity()/1024,
+            ["list"] = {
+                ["free"] = ngx.shared.list:free_space()/1024,
+                ["capacity"] = ngx.shared.list:capacity()/1024,
             },
             ["limiter"] = {
                 ["free"] = ngx.shared.limiter:free_space()/1024,
@@ -194,7 +194,7 @@ _M.routes = {
     { ['method'] = "POST", ["path"] = "/config", ['handle'] = _M.config_set},
     { ['method'] = "POST", ["path"] = "/config/reload", ['handle'] = _M.config_reload},
     { ['method'] = "POST", ["path"] = "/modules/counter/dump", ['handle'] = _M.dump_counter},
-    { ['method'] = "POST", ["path"] = "/modules/filter/list/reload", ['handle'] = _M.filter_reload},
+    { ['method'] = "POST", ["path"] = "/list/reload", ['handle'] = _M.list_reload},
     { ['method'] = "GET", ["path"] = "/status", ['handle'] = _M.status_get},
 }
 

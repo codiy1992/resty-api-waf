@@ -2,7 +2,7 @@ local _M = {}
 
 local comm = require "lib.comm"
 local request_tester = require "lib.tester"
-local filter = ngx.shared.filter
+local list = ngx.shared.list
 
 function _M.run(config)
     if ngx.req.is_internal() == true then
@@ -23,7 +23,7 @@ function _M.run(config)
             if rule['by'] ~= nil then
                 if rule['by'] == 'ip:in_list' then
                     local client_ip = comm.get_client_ip()
-                    if client_ip ~= nil and filter:get(client_ip) ~= nil then
+                    if client_ip ~= nil and list:get(client_ip) ~= nil then
                         if action == 'block' then
                             comm.response(response_list, rule['code'])
                         end
@@ -31,7 +31,7 @@ function _M.run(config)
                     goto continue
                 elseif rule['by'] == 'ip:not_in_list' then
                     local client_ip = comm.get_client_ip()
-                    if client_ip ~= nil and filter:get(client_ip) == nil then
+                    if client_ip ~= nil and list:get(client_ip) == nil then
                         if action == 'block' then
                             comm.response(response_list, rule['code'])
                         end
@@ -39,7 +39,7 @@ function _M.run(config)
                     goto continue
                 elseif rule['by'] == 'device:in_list' then
                     local device_id = comm.get_device_id()
-                    if device_id ~= nil and filter:get(string.lower(device_id)) ~= nil then
+                    if device_id ~= nil and list:get(string.lower(device_id)) ~= nil then
                         if action == 'block' then
                             comm.response(response_list, rule['code'])
                         end
@@ -47,7 +47,7 @@ function _M.run(config)
                     goto continue
                 elseif rule['by'] == 'device:not_in_list' then
                     local device_id = comm.get_device_id()
-                    if device_id ~= nil and filter:get(string.lower(device_id)) == nil then
+                    if device_id ~= nil and list:get(string.lower(device_id)) == nil then
                         if action == 'block' then
                             comm.response(response_list, rule['code'])
                         end
@@ -55,7 +55,7 @@ function _M.run(config)
                     goto continue
                 elseif rule['by'] == 'uid:in_list' then
                     local uid = comm.get_user_id()
-                    if uid ~= nil and filter:get(string.lower(uid)) ~= nil then
+                    if uid ~= nil and list:get(string.lower(uid)) ~= nil then
                         if action == 'block' then
                             comm.response(response_list, rule['code'])
                         end
@@ -63,7 +63,7 @@ function _M.run(config)
                     goto continue
                 elseif rule['by'] == 'uid:not_in_list' then
                     local uid = comm.get_user_id()
-                    if uid ~= nil and filter:get(string.lower(uid)) == nil then
+                    if uid ~= nil and list:get(string.lower(uid)) == nil then
                         if action == 'block' then
                             comm.response(response_list, rule['code'])
                         end

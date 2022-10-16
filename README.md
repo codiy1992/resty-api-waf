@@ -230,6 +230,14 @@ zadd waf:modules:filter 1664521948 f14268d542f919d5
 zadd waf:modules:filter 1664521948 13.251.156.174
 // 重载配置
 curl --request POST '{YourDomain}/waf/modules/filter/reload' --header 'Authorization: Basic d2FmOlRUcHNYSHRJNW13cQ=='
+
+// 只允许在list中的IP访问
+// 先排除
+hset waf:config:modules.filter.rules 0 '{"matcher":"any","action":"block","enable":true,"by":"ip:not_in_list"}'
+// 在包含
+hset waf:config:modules.filter.rules 1 '{"matcher":"any","action":"accept","enable":true,"by":"ip:in_list"}'
+
+zadd waf:modules:filter 1664521948 13.251.156.174
 ```
 
 **1. 修改 matcher**

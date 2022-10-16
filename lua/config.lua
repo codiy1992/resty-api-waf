@@ -3,9 +3,9 @@ local _M = {
         ["filter"] = {
             ["enable"] = true,
             ["rules"] = {
-                {["matcher"] = 'any', ["by"] = "ip", ["action"] = "block", ["code"] = 403, ["enable"] = true },
-                {["matcher"] = 'any', ["by"] = "device", ["action"] = "block", ["code"] = 403, ["enable"] = true },
-                {["matcher"] = 'any', ["by"] = "uid", ["action"] = "block", ["code"] = 403, ["enable"] = true },
+                {["matcher"] = 'any', ["by"] = "ip:in_list", ["action"] = "block", ["code"] = 403, ["enable"] = true },
+                {["matcher"] = 'any', ["by"] = "device:in_list", ["action"] = "block", ["code"] = 403, ["enable"] = true },
+                {["matcher"] = 'any', ["by"] = "uid:in_list", ["action"] = "block", ["code"] = 403, ["enable"] = true },
                 {["matcher"] = 'attack_sql', ["action"] = "block", ["code"] = 403, ["enable"] = true },
                 {["matcher"] = 'attack_file_ext', ["action"] = "block", ["code"] = 403, ["enable"] = true },
                 {["matcher"] = 'attack_agent', ["action"] = "block", ["code"] = 403, ["enable"] = true },
