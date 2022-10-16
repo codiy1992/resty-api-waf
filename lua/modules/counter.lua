@@ -24,8 +24,8 @@ function _M.run(config)
             if rule['time'] > 86400 then
                 rule['time'] = 86400
             end
-            time = tonumber(rule['time'])
-            key = rule['time'] .. ";"
+            local time = tonumber(rule['time'])
+            local key = rule['time'] .. ";"
             if rule['by'] ~= nil then
                 for by in string.gmatch(rule['by'], '[^,]+') do
                     if by == 'ip' then

@@ -78,8 +78,8 @@ function _M.config_reload()
     return require('cjson').encode(require("shared").reload_config())
 end
 
-function _M.limiter_refresh()
-    require("shared").reload_limited()
+function _M.filter_reload()
+    require("shared").reload_filter()
     return require('cjson').encode({["code"] = 200, ["message"] = "success"})
 end
 
@@ -96,9 +96,9 @@ function _M.dump_counter(config)
         count = tonumber(inputs['count'])
     end
     if inputs['key'] ~= nil then
-        total = counter:get(inputs['key'])
+        local total = counter:get(inputs['key'])
         if total ~= nil then
-            time,by,key =inputs['key']:match"^([^;]+);(.+):([^:]*)$"
+            local time,by,key =inputs['key']:match"^([^;]+);(.+):([^:]*)$"
             if data[time] == nil then
                 data[time] = {}
             end
@@ -108,9 +108,9 @@ function _M.dump_counter(config)
             data[time][by][key] = total
         end
     else
-        keys = counter:get_keys()
+        local keys = counter:get_keys()
         for _,v in ipairs(keys) do
-            time,by,key =v:match"^([^;]+);(.+):([^:]*)$"
+            local time,by,key =v:match"^([^;]+);(.+):([^:]*)$"
             if data[time] == nil then
                 data[time] = {}
             end
@@ -194,7 +194,7 @@ _M.routes = {
     { ['method'] = "POST", ["path"] = "/config", ['handle'] = _M.config_set},
     { ['method'] = "POST", ["path"] = "/config/reload", ['handle'] = _M.config_reload},
     { ['method'] = "POST", ["path"] = "/modules/counter/dump", ['handle'] = _M.dump_counter},
-    { ['method'] = "POST", ["path"] = "/modules/limiter/refresh", ['handle'] = _M.limiter_refresh},
+    { ['method'] = "POST", ["path"] = "/modules/filter/reload", ['handle'] = _M.filter_reload},
     { ['method'] = "GET", ["path"] = "/status", ['handle'] = _M.status_get},
 }
 

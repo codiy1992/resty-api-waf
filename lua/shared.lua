@@ -63,9 +63,9 @@ function _M.reload_config()
     return config
 end
 
-function _M.reload_limited()
+function _M.reload_filter()
     redis.exec(function (rds)
-        local res, err = rds:zrange("waf:modules:limiter", 0, -1, 'WITHSCORES');
+        local res, err = rds:zrange("waf:modules:filter", 0, -1, 'WITHSCORES');
         if err then
             ngx.log(ngx.ERR, "zrange failed:", err)
             return
@@ -75,10 +75,10 @@ function _M.reload_limited()
             local identifier = res[i]
             local expiry = tonumber(res[i+1])
             if expiry < now then
-                ngx.shared.limiter:set(identifier, nil)
-                rds:zrem("waf:modules:limiter", identifier)
+                ngx.shared.filter:set(identifier, nil)
+                rds:zrem("waf:modules:filter", identifier)
             else
-                ngx.shared.limiter:set(identifier, 999, expiry - now)
+                ngx.shared.filter:set(identifier, 999, expiry - now)
             end
         end
 
