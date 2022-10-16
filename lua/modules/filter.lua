@@ -20,59 +20,58 @@ function _M.run(config)
         local matcher = matcher_list[ rule['matcher'] ]
         local action = rule['action']
         if enable == true and request_tester.test( matcher ) == true then
-            if rule['by'] ~= nil and rule['by'] == 'ip:in_list' then
-                local client_ip = comm.get_client_ip()
-                if client_ip ~= nil and filter:get(client_ip) ~= nil then
-                    if action == 'block' then
-                        comm.response(response_list, rule['code'])
+            if rule['by'] ~= nil then
+                if rule['by'] == 'ip:in_list' then
+                    local client_ip = comm.get_client_ip()
+                    if client_ip ~= nil and filter:get(client_ip) ~= nil then
+                        if action == 'block' then
+                            comm.response(response_list, rule['code'])
+                        end
                     end
-                end
-                goto continue
-            end
-            if rule['by'] ~= nil and rule['by'] == 'ip:not_in_list' then
-                local client_ip = comm.get_client_ip()
-                if client_ip ~= nil and filter:get(client_ip) == nil then
-                    if action == 'block' then
-                        comm.response(response_list, rule['code'])
+                    goto continue
+                elseif rule['by'] == 'ip:not_in_list' then
+                    local client_ip = comm.get_client_ip()
+                    if client_ip ~= nil and filter:get(client_ip) == nil then
+                        if action == 'block' then
+                            comm.response(response_list, rule['code'])
+                        end
                     end
-                end
-                goto continue
-            end
-            if rule['by'] ~= nil and rule['by'] == 'device:in_list' then
-                local device_id = comm.get_device_id()
-                if device_id ~= nil and filter:get(string.lower(device_id)) ~= nil then
-                    if action == 'block' then
-                        comm.response(response_list, rule['code'])
+                    goto continue
+                elseif rule['by'] == 'device:in_list' then
+                    local device_id = comm.get_device_id()
+                    if device_id ~= nil and filter:get(string.lower(device_id)) ~= nil then
+                        if action == 'block' then
+                            comm.response(response_list, rule['code'])
+                        end
                     end
-                end
-                goto continue
-            end
-            if rule['by'] ~= nil and rule['by'] == 'device:not_in_list' then
-                local device_id = comm.get_device_id()
-                if device_id ~= nil and filter:get(string.lower(device_id)) == nil then
-                    if action == 'block' then
-                        comm.response(response_list, rule['code'])
+                    goto continue
+                elseif rule['by'] == 'device:not_in_list' then
+                    local device_id = comm.get_device_id()
+                    if device_id ~= nil and filter:get(string.lower(device_id)) == nil then
+                        if action == 'block' then
+                            comm.response(response_list, rule['code'])
+                        end
                     end
-                end
-                goto continue
-            end
-            if rule['by'] ~= nil and rule['by'] == 'uid:in_list' then
-                local uid = comm.get_user_id()
-                if uid ~= nil and filter:get(string.lower(uid)) ~= nil then
-                    if action == 'block' then
-                        comm.response(response_list, rule['code'])
+                    goto continue
+                elseif rule['by'] == 'uid:in_list' then
+                    local uid = comm.get_user_id()
+                    if uid ~= nil and filter:get(string.lower(uid)) ~= nil then
+                        if action == 'block' then
+                            comm.response(response_list, rule['code'])
+                        end
                     end
-                end
-                goto continue
-            end
-            if rule['by'] ~= nil and rule['by'] == 'uid:not_in_list' then
-                local uid = comm.get_user_id()
-                if uid ~= nil and filter:get(string.lower(uid)) ~= nil then
-                    if action == 'block' then
-                        comm.response(response_list, rule['code'])
+                    goto continue
+                elseif rule['by'] == 'uid:not_in_list' then
+                    local uid = comm.get_user_id()
+                    if uid ~= nil and filter:get(string.lower(uid)) == nil then
+                        if action == 'block' then
+                            comm.response(response_list, rule['code'])
+                        end
                     end
+                    goto continue
+                else
+                    goto continue
                 end
-                goto continue
             end
             if action ~= 'block' then
                 goto continue
