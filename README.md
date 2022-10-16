@@ -215,6 +215,38 @@ docker-compose up -d resty
     }
 }
 ```
+
+### 自定义配置(临时生效)
+
+**nginx重启或者通过接口`/waf/config/reload`重载配置后天失效**
+
+```shell
+curl --request POST 'http://{YourDomain}/waf/config' \
+--header 'Content-Type: application/json' \
+--header 'Authorization: Basic d2FmOlRUcHNYSHRJNW13cQ==' \
+--data-raw '{
+
+    "modules": {
+        "filter": {
+            "rules": [
+                {
+                    "matcher": "any",
+                    "action": "block",
+                    "enable": true,
+                    "by": "device:not_in_list"
+                },
+                {
+                    "matcher": "any",
+                    "action": "accept",
+                    "enable": true,
+                    "by": "device:in_list"
+                }
+            ]
+        }
+    }
+}'
+```
+
 ### 自定义配置(通过Redis)
 
 默认读取环境变量`REDIS_HOST`,`REDIS_PORT`,`REDIS_DB` 来获取redis配置, 否则从 `/data/.env` 读取
@@ -307,6 +339,21 @@ curl --request POST '{YourDomain}/waf/config/reload' --header 'Authorization: Ba
 hset waf:config:modules.manager auth '{"user": "test", "pass": "123" }'
 // 重载配置
 curl --request POST '{YourDomain}/waf/config/refresh' --header 'Authorization: Basic d2FmOlRUcHNYSHRJNW13cQ=='
+```
+
+### 查看请求计数器统计数据
+
+```shell
+curl --location --request POST '127.0.0.1/waf/modules/counter/dump' \
+--header 'Content-Type: application/json' \
+--header 'Authorization: Basic d2FmOlRUcHNYSHRJNW13cQ==' \
+--data-raw '{
+    "count": 1, // 请求数量 >= 1, 当指定key时自动忽略
+    "scale": 1024, // 数据规模设置为0可去全部统计数据,默认1024
+    "by": "ip:172.23.0.1;uri", // 分组, 当指定key时自动忽略
+    "time": 60, // 时间长度, 当指定key时自动忽略
+    "key": "60;ip:172.23.0.1;uri:/waf/modules/counter/dump" // 完整的统计key
+}'
 ```
 
 ### 参考项目
