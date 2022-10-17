@@ -24,8 +24,8 @@ local _M = {
         ["counter"] = {
             ["enable"] = true,
             ["rules"] = {
+                {["matcher"] = 'any', ["by"] = "ip",["time"] = 60, ["enable"] = false },
                 {["matcher"] = 'any', ["by"] = "ip,uri", ["time"] = 60, ["enable"] = false },
-                {["matcher"] = 'any', ["by"] = "uid",["time"] = 60, ["enable"] = false },
             }
         },
         ["manager"] = {
