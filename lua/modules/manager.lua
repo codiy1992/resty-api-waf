@@ -99,39 +99,37 @@ function _M.dump_counter(config)
         local total = counter:get(inputs['key'])
         if total ~= nil then
             local time,by,key =inputs['key']:match"^([^;]+);(.+):([^:]*)$"
-            if data[time] == nil then
-                data[time] = {}
-            end
-            if data[time][by] == nil then
-                data[time][by] = {}
-            end
+            if data[time] == nil then data[time] = {} end
+            if data[time][by] == nil then data[time][by] = {} end
             data[time][by][key] = total
         end
     else
         local keys = counter:get_keys()
         for _,v in ipairs(keys) do
             local time,by,key =v:match"^([^;]+);(.+):([^:]*)$"
-            if data[time] == nil then
-                data[time] = {}
-            end
-            if data[time][by] == nil then
-                data[time][by] = {}
-            end
             local total = counter:get(v)
             if total >= count then
                 if inputs['by'] ~= nil and inputs['time'] == nil then
                     if inputs['by'] == by then
+                        if data[time] == nil then data[time] = {} end
+                        if data[time][by] == nil then data[time][by] = {} end
                         data[time][by][key] = total
                     end
                 elseif inputs['time'] ~= nil and inputs['by'] == nil then
                     if tonumber(inputs['time']) == tonumber(time) then
+                        if data[time] == nil then data[time] = {} end
+                        if data[time][by] == nil then data[time][by] = {} end
                         data[time][by][key] = total
                     end
                 elseif inputs['by']  ~= nil and inputs['time'] ~= nil then
                     if inputs['by'] == by and tonumber(inputs['time']) == tonumber(time) then
+                        if data[time] == nil then data[time] = {} end
+                        if data[time][by] == nil then data[time][by] = {} end
                         data[time][by][key] = total
                     end
                 else
+                    if data[time] == nil then data[time] = {} end
+                    if data[time][by] == nil then data[time][by] = {} end
                     data[time][by][key] = total
                 end
             end
