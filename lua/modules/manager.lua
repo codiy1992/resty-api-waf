@@ -119,7 +119,7 @@ function _M.dump_counter(config)
         local keys = counter:get_keys(scale)
         for _,v in ipairs(keys) do
             if inputs['q'] ~= nil and type(inputs['q']) == 'string' and inputs['q'] ~= '' then
-                if string.find(v, inputs['q']) == nil then
+                if ngx.re.find(v, inputs['q'], 'isjo') == nil then
                     goto continue
                 end
             end
@@ -233,7 +233,7 @@ function _M.list_get()
         local keys = list:get_keys(scale)
         for _,key in ipairs(keys) do
             if inputs['q'] ~= nil and type(inputs['q']) == 'string' and inputs['q'] ~= '' then
-                if key:find(inputs['q']) ~= nil then
+                if ngx.re.find(key, inputs['q'], 'isjo') ~= nil then
                     data[key] = list:get(key)
                 end
             else
