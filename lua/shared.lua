@@ -70,15 +70,16 @@ function _M.reload_list()
             ngx.log(ngx.ERR, "zrange failed:", err)
             return
         end
-        local now = os.time(os.date("!*t"))
         for i = 1,nkeys(res),2 do
             local identifier = res[i]
-            local expiry = tonumber(res[i+1])
-            if expiry < now then
+            local ttl = tonumber(res[i+1])
+            if ttl <= 0 then
                 ngx.shared.list:set(identifier, nil)
                 rds:zrem("waf:list", identifier)
+            elseif ttl >= 2678400 then
+                ngx.shared.list:set(identifier, 2678400, 2678400)
             else
-                ngx.shared.list:set(identifier, 1, expiry - now)
+                ngx.shared.list:set(identifier, ttl, ttl)
             end
         end
 

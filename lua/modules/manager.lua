@@ -95,17 +95,34 @@ function _M.dump_counter(config)
     if inputs['count'] ~=nil then
         count = tonumber(inputs['count'])
     end
-    if inputs['key'] ~= nil then
-        local total = counter:get(inputs['key'])
-        if total ~= nil then
-            local time,by,key =inputs['key']:match"^([^;]+);(.+):([^:]*)$"
-            if data[time] == nil then data[time] = {} end
-            if data[time][by] == nil then data[time][by] = {} end
-            data[time][by][key] = total
+    if inputs['keys'] ~= nil then
+        if type(inputs['keys']) == 'string' and inputs['keys'] ~= '' then
+            local total = counter:get(inputs['keys'])
+            if total ~= nil then
+                local time,by,key =inputs['keys']:match"^([^;]+);(.+):([^:]*)$"
+                if data[time] == nil then data[time] = {} end
+                if data[time][by] == nil then data[time][by] = {} end
+                data[time][by][key] = total
+            end
+        elseif type(inputs['keys']) == 'table' and table.getn(inputs['keys']) > 0 then
+            for _,v in ipairs(inputs['keys']) do
+                local total = counter:get(v)
+                if total ~= nil then
+                    local time,by,key = v:match"^([^;]+);(.+):([^:]*)$"
+                    if data[time] == nil then data[time] = {} end
+                    if data[time][by] == nil then data[time][by] = {} end
+                    data[time][by][key] = total
+                end
+            end
         end
     else
-        local keys = counter:get_keys()
+        local keys = counter:get_keys(scale)
         for _,v in ipairs(keys) do
+            if inputs['q'] ~= nil and type(inputs['q']) == 'string' and inputs['q'] ~= '' then
+                if string.find(v, inputs['q']) == nil then
+                    goto continue
+                end
+            end
             local time,by,key =v:match"^([^;]+);(.+):([^:]*)$"
             local total = counter:get(v)
             if total >= count then
@@ -133,6 +150,7 @@ function _M.dump_counter(config)
                     data[time][by][key] = total
                 end
             end
+            ::continue::
         end
     end
     return require('cjson').encode(data)
@@ -187,13 +205,86 @@ function _M.status_get()
     }
    return require('cjson').encode(data)
 end
+
+function _M.list_get()
+    local list = ngx.shared.list
+    local data = {}
+    local inputs = require('cjson').decode(ngx.req.get_body_data() or '{}')
+    local scale = 1024
+    if inputs['scale'] ~= nil then
+        scale = tonumber(inputs['scale'])
+    end
+    if inputs['keys'] ~= nil then
+        if type(inputs['keys']) == 'string' and inputs['keys'] ~= '' then
+            local key = inputs['keys']
+            local total = list:get(key)
+            if total ~= nil then
+                data[key] = string.format('%.0f', list:ttl(key)) .. "/" .. tostring(total)
+            end
+        elseif type(inputs['keys']) == 'table' and table.getn(inputs['keys']) > 0 then
+            for _,key in ipairs(inputs['keys']) do
+                local total = list:get(key)
+                if total ~= nil then
+                    data[key] = string.format('%.0f', list:ttl(key)) .. "/" .. tostring(total)
+                end
+            end
+        end
+    else
+        local keys = list:get_keys(scale)
+        for _,key in ipairs(keys) do
+            if inputs['q'] ~= nil and type(inputs['q']) == 'string' and inputs['q'] ~= '' then
+                if key:find(inputs['q']) ~= nil then
+                    data[key] = list:get(key)
+                end
+            else
+                data[key] = list:get(key)
+            end
+        end
+        local size = table.getn(data)
+        if  size <= 2048 then
+            for k,v in pairs(data) do
+                local ttl = list:ttl(k)
+                if inputs['ttl'] ~=nil then
+                    if ttl <= tonumber(inputs['ttl']) then
+                        data[k] = string.format('%.0f', ttl) .. "/" .. v
+                    else
+                        data[k] = nil
+                    end
+                else
+                    data[k] = string.format('%.0f', ttl) .. "/" .. v
+                end
+            end
+        end
+    end
+    return require('cjson').encode(data)
+end
+
+function _M.list_set()
+    local list = ngx.shared.list
+    local data = {}
+    local inputs = require('cjson').decode(ngx.req.get_body_data() or '{}')
+    for identifier,v in pairs(inputs) do
+        local ttl = tonumber(v)
+        if ttl <= 0 then
+            ngx.shared.list:set(identifier, nil)
+        elseif ttl >= 2678400 then
+            ngx.shared.list:set(identifier, 2678400, 2678400)
+        else
+            ngx.shared.list:set(identifier, ttl, ttl)
+        end
+    end
+   return require('cjson').encode({})
+end
+
 _M.routes = {
+    { ['method'] = "GET", ["path"] = "/status", ['handle'] = _M.status_get},
     { ['method'] = "GET", ["path"] = "/config", ['handle'] = _M.config_get},
     { ['method'] = "POST", ["path"] = "/config", ['handle'] = _M.config_set},
     { ['method'] = "POST", ["path"] = "/config/reload", ['handle'] = _M.config_reload},
-    { ['method'] = "POST", ["path"] = "/modules/counter/dump", ['handle'] = _M.dump_counter},
+    { ['method'] = "GET", ["path"] = "/list", ['handle'] = _M.list_get},
+    { ['method'] = "POST", ["path"] = "/list", ['handle'] = _M.list_set},
     { ['method'] = "POST", ["path"] = "/list/reload", ['handle'] = _M.list_reload},
-    { ['method'] = "GET", ["path"] = "/status", ['handle'] = _M.status_get},
+    { ['method'] = "GET", ["path"] = "/modules/counter", ['handle'] = _M.dump_counter},
 }
 
 return _M
