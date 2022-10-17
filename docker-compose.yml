@@ -1,5 +1,9 @@
 version: "3.5"
 
+networks:
+  backend:
+    driver: bridge
+
 services:
   resty:
     image: resty
@@ -7,16 +11,20 @@ services:
     build:
       context: ./
     volumes:
+      - ${PWD}/.env:/data/.env
       - ${PWD}/lua:/usr/local/openresty/nginx/lua
       - ${PWD}/nginx.conf:/usr/local/openresty/nginx/conf/nginx.conf
       - ${PWD}/sites.d/laravel.conf:/usr/local/openresty/nginx/conf/sites.d/default.conf
     privileged: true
     ports:
       - 8080:80
+    networks:
+      - backend
+
   redis:
     image: redis
     container_name: redis
-    volumes:
-      - ${PWD}/.env:/data/.env
     ports:
-      - "6379:6379"
+      - 6379:6379
+    networks:
+      - backend
