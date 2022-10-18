@@ -37,7 +37,10 @@ end
 
 function _M.config_set(config)
     local inputs = require('cjson').decode(ngx.req.get_body_data() or '{}')
-    local keys = {"matcher", "response", "modules.manager.auth", "modules.filter.rules", "modules.limiter.rules", "modules.counter.rules"}
+    local keys = {
+        "matcher", "response", "modules.manager.auth", "modules.filter.rules",
+        "modules.limiter.rules", "modules.counter.rules"
+    }
     for i,key in pairs(keys) do
         local last_field = nil
         local sub_inputs = inputs
@@ -83,7 +86,7 @@ function _M.list_reload()
     return require('cjson').encode({["code"] = 200, ["message"] = "success"})
 end
 
-function _M.dump_counter(config)
+function _M.counter_get(config)
     local counter = ngx.shared.counter
     local data = {}
     local inputs = require('cjson').decode(ngx.req.get_body_data() or '{}')
@@ -95,60 +98,35 @@ function _M.dump_counter(config)
     if inputs['count'] ~=nil then
         count = tonumber(inputs['count'])
     end
-    if inputs['keys'] ~= nil then
-        if type(inputs['keys']) == 'string' and inputs['keys'] ~= '' then
-            local total = counter:get(inputs['keys'])
+
+    if type(inputs['q']) == 'table' and table.getn(inputs['q']) > 0 then
+        for _,v in ipairs(inputs['q']) do
+            local total = counter:get(v)
             if total ~= nil then
-                local time,by,key =inputs['keys']:match"^([^;]+);(.+):([^:]*)$"
+                local time,by,key = v:match"^([^;]+);(.+):([^:]*)$"
                 if data[time] == nil then data[time] = {} end
                 if data[time][by] == nil then data[time][by] = {} end
                 data[time][by][key] = total
             end
-        elseif type(inputs['keys']) == 'table' and table.getn(inputs['keys']) > 0 then
-            for _,v in ipairs(inputs['keys']) do
-                local total = counter:get(v)
-                if total ~= nil then
-                    local time,by,key = v:match"^([^;]+);(.+):([^:]*)$"
-                    if data[time] == nil then data[time] = {} end
-                    if data[time][by] == nil then data[time][by] = {} end
-                    data[time][by][key] = total
-                end
-            end
         end
     else
         local keys = counter:get_keys(scale)
-        for _,v in ipairs(keys) do
+        for i,v in ipairs(keys) do
             if inputs['q'] ~= nil and type(inputs['q']) == 'string' and inputs['q'] ~= '' then
                 if ngx.re.find(v, inputs['q'], 'isjo') == nil then
+                    goto continue
+                end
+            else
+                if i > 2048 then
                     goto continue
                 end
             end
             local time,by,key =v:match"^([^;]+);(.+):([^:]*)$"
             local total = counter:get(v)
             if total >= count then
-                if inputs['by'] ~= nil and inputs['time'] == nil then
-                    if inputs['by'] == by then
-                        if data[time] == nil then data[time] = {} end
-                        if data[time][by] == nil then data[time][by] = {} end
-                        data[time][by][key] = total
-                    end
-                elseif inputs['time'] ~= nil and inputs['by'] == nil then
-                    if tonumber(inputs['time']) == tonumber(time) then
-                        if data[time] == nil then data[time] = {} end
-                        if data[time][by] == nil then data[time][by] = {} end
-                        data[time][by][key] = total
-                    end
-                elseif inputs['by']  ~= nil and inputs['time'] ~= nil then
-                    if inputs['by'] == by and tonumber(inputs['time']) == tonumber(time) then
-                        if data[time] == nil then data[time] = {} end
-                        if data[time][by] == nil then data[time][by] = {} end
-                        data[time][by][key] = total
-                    end
-                else
-                    if data[time] == nil then data[time] = {} end
-                    if data[time][by] == nil then data[time][by] = {} end
-                    data[time][by][key] = total
-                end
+                if data[time] == nil then data[time] = {} end
+                if data[time][by] == nil then data[time][by] = {} end
+                data[time][by][key] = counter:get(v)
             end
             ::continue::
         end
@@ -214,30 +192,24 @@ function _M.list_get()
     if inputs['scale'] ~= nil then
         scale = tonumber(inputs['scale'])
     end
-    if inputs['keys'] ~= nil then
-        if type(inputs['keys']) == 'string' and inputs['keys'] ~= '' then
-            local key = inputs['keys']
+    if type(inputs['q']) == 'table' and table.getn(inputs['q']) > 0 then
+        for _,key in ipairs(inputs['q']) do
             local total = list:get(key)
             if total ~= nil then
                 data[key] = string.format('%.0f', list:ttl(key)) .. "/" .. tostring(total)
             end
-        elseif type(inputs['keys']) == 'table' and table.getn(inputs['keys']) > 0 then
-            for _,key in ipairs(inputs['keys']) do
-                local total = list:get(key)
-                if total ~= nil then
-                    data[key] = string.format('%.0f', list:ttl(key)) .. "/" .. tostring(total)
-                end
-            end
         end
     else
         local keys = list:get_keys(scale)
-        for _,key in ipairs(keys) do
+        for i,key in ipairs(keys) do
             if inputs['q'] ~= nil and type(inputs['q']) == 'string' and inputs['q'] ~= '' then
                 if ngx.re.find(key, inputs['q'], 'isjo') ~= nil then
                     data[key] = list:get(key)
                 end
             else
-                data[key] = list:get(key)
+                if i <= 2048 then
+                    data[key] = list:get(key)
+                end
             end
         end
         local size = table.getn(data)
@@ -284,7 +256,7 @@ _M.routes = {
     { ['method'] = "GET", ["path"] = "/list", ['handle'] = _M.list_get},
     { ['method'] = "POST", ["path"] = "/list", ['handle'] = _M.list_set},
     { ['method'] = "POST", ["path"] = "/list/reload", ['handle'] = _M.list_reload},
-    { ['method'] = "GET", ["path"] = "/modules/counter", ['handle'] = _M.dump_counter},
+    { ['method'] = "GET", ["path"] = "/modules/counter", ['handle'] = _M.counter_get},
 }
 
 return _M
