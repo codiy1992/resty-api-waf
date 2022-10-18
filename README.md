@@ -1,27 +1,27 @@
-## 项目说明
+# 项目说明
 
 > 安装及依赖详见 `Dockerfile`
 
-### 1. 几个共享内存
+## 1. 几个共享内存
 
 * `lua_shared_dict waf 32k;` 存放 waf 配置等信息
 * `lua_shared_dict list 10m;` 存放ip/device/uid名单, 用于提供`matcher`之外的匹配功能
 * `lua_shared_dict limiter 10m;` 存放请求频率限制信息
 * `lua_shared_dict counter 10m;` 存放请求次数统计信息
 
-### 2. 执行流程
+## 2. 执行流程
 
 * `init_worker_by_lua` 阶段, 读入默认配置, 并从 redis 获取最新配置信息, 合并两者放入共享内存
 * `access_by_lua` 阶段, 从共享内存读取配置, 顺序执行对应模块
 
-### 3. 配置的结构
+## 3. 配置的结构
 
 配置由三大部分组成如下
 * `matcher` 一些匹配规则, 可在各模块间共用, 用于匹配特定请求
 * `response` 自定义响应格式, 可在各模块间共用, 用于waf模块内的http响应
 * `modules` 模块配置, 包含 `filter`, `limiter`, `counter`, `manager` 四大模块
 
-#### 3.1 matcher
+### 3.1 matcher
 
 在模块内根据HTTP请求的 `ip`, `uri`, `args`, `header`, `body`, `user_agent`, `referer` 等信息匹配请求, 匹配命中的请求将在模块内进行下一步操作比如,限制访问直接返回或者记录请求频次等
 
@@ -83,7 +83,7 @@
 }
 ```
 
-#### 3.2 response
+### 3.2 response
 
 用于`waf`模块拒绝请求时候响应给客户端
 
@@ -98,7 +98,7 @@
 }
 ```
 
-#### 3.3 filter 模块
+### 3.3 filter 模块
 
 用于过滤请求,流程如下
 * `matcher`匹配上的请求, 执行放行`accept`或者拒绝`block`操作
@@ -165,7 +165,7 @@
 }
 ```
 
-#### 3.4 limiter 模块
+### 3.4 limiter 模块
 
 用于请求频率限制,对于匹配`matcher`的请求, 可基于`ip`,`uri`,`uid`,`device`及其组合建立频率控制规则
 
@@ -196,7 +196,7 @@
 }
 ```
 
-#### 3.5 counter 模块
+### 3.5 counter 模块
 
 统计请求次数,根据 `ip`, `uri`, `uid` `device`及其任意组合如`ip,uri`, `uri,ip`,来统计请求次数
 
@@ -235,7 +235,7 @@ curl --location --request GET 'http://127.0.0.1/waf/module/counter' \
 }
 ```
 
-#### 3.6 manager 模块
+### 3.6 manager 模块
 
 用于 waf 的管理, 提供一系列以 `/waf` 开头的路由, 需要通过 Basic Authorizaton 认证
 默认账号密码 `waf:TTpsXHtI5mwq` 或者指定头信息 `Authorization: Basic d2FmOlRUcHNYSHRJNW13cQ==`
@@ -252,14 +252,14 @@ curl --location --request GET 'http://127.0.0.1/waf/module/counter' \
 |`/waf/module/counter`| GET | 查询请求计数器统计情况 |
 |`/waf/module/limiter`| GET | 查询请求频次限制器情况 |
 
-#### 3.7 完整的默认配置
+### 3.7 完整的默认配置
 
 ```json
 ```
 
-### 4. 自定义配置(临时生效, 通过HTTP接口)
+## 4. 自定义配置(临时生效, 通过HTTP接口)
 
-#### 4.1 自定义配置config
+### 4.1 自定义配置config
 
 自定义配置将以**覆盖模式**和默认配置**合并**, 作为当前配置, **在nginx重启或者通过接口`/waf/config/reload`重载配置后失效**
 
@@ -290,7 +290,7 @@ curl --request POST 'http://127.0.0.1/waf/config' \
 }'
 ```
 
-#### 4.2 自定义配置list
+### 4.2 自定义配置list
 
 自定义配置将以**覆盖模式**和当前`list`**合并**
 
@@ -306,11 +306,11 @@ curl --location --request POST 'http://127.0.0.1/waf/list' \
 ```
 
 
-### 5. 自定义配置(持续生效, 通过Redis)
+## 5. 自定义配置(持续生效, 通过Redis)
 
 默认读取环境变量`REDIS_HOST`,`REDIS_PORT`,`REDIS_DB` 来获取redis配置, 否则从 `/data/.env` 读取
 
-#### 5.1 自定义配置config
+### 5.1 自定义配置config
 
 * config存放在 redis 中以 `waf:config:` 为开头的`hset` 中
 * 目前支持几个配置项, 
@@ -326,15 +326,15 @@ curl --location --request POST 'http://127.0.0.1/waf/list' \
 * 如在`redis`中执行命令`hset waf:config:modules.counter enable false`
 * 在 redis 配置后需执行`/waf/config/reload`将配置与默认配置进行合并,方可生效
 
-#### 5.2 自定义配置list
+### 5.2 自定义配置list
 
 * 自定义的list放在 redis 中以 `waf:list` 为key的 `zset` 中
 * 如在`redis`中执行命令`zadd waf:list 86400 127.0.0.1`
 * 在 redis 配置后需执行`/waf/list/reload`将配置与当前共享内存名单合并后生效
 
-### 6. 应用场景示范
+## 6. 应用场景示范
 
-#### 6.1 维护IP/uid/device名单
+### 6.1 维护IP/uid/device名单
 
 **示例一: 限制访问**(默认配置已经在`filter`模块中开启了对`list`名单的支持, 默认为黑名单)
 ```shell
@@ -362,7 +362,7 @@ curl --request POST 'http://127.0.0.1/waf/list/reload' \
     --header 'Authorization: Basic d2FmOlRUcHNYSHRJNW13cQ=='
 ```
 
-#### 6.2 配置 matcher
+### 6.2 配置 matcher
 
 ```shell
 // 匹配头部参数 X-App-ID = 4 的请求
@@ -373,7 +373,7 @@ hset waf:config:matcher attack_agent '{"UserAgent":{"value":"(postman)","operato
 curl --request POST 'http://127.0.0.1/waf/config/reload' \
 --header 'Authorization: Basic d2FmOlRUcHNYSHRJNW13cQ=='
 ```
-#### 6.3 配置 response
+### 6.3 配置 response
 
 ```shell
 // Redis 命令
@@ -382,7 +382,7 @@ hset waf:config:response 503 '{"status":503,"mime_type":"application/json","body
 curl --request POST 'http://127.0.0.1/waf/config/refresh' \
     --header 'Authorization: Basic d2FmOlRUcHNYSHRJNW13cQ=='
 ```
-#### 6.4 modules.filter.rules
+### 6.4 modules.filter.rules
 
 ```shell
 // Redis 命令
@@ -392,7 +392,7 @@ curl --request POST 'http://127.0.0.1/waf/config/reload' \
     --header 'Authorization: Basic d2FmOlRUcHNYSHRJNW13cQ=='
 ```
 
-#### 6.5 modules.limiter.rules
+### 6.5 modules.limiter.rules
 
 ```shell
 // Redis 命令
@@ -402,7 +402,7 @@ curl --request POST 'http://127.0.0.1/waf/config/reload' \
     --header 'Authorization: Basic d2FmOlRUcHNYSHRJNW13cQ=='
 ```
 
-#### 6.6 modules.counter.rules
+### 6.6 modules.counter.rules
 
 ```shell
 // Redis 命令
@@ -412,7 +412,7 @@ curl --request POST 'http://127.0.0.1/waf/config/reload' \
     --header 'Authorization: Basic d2FmOlRUcHNYSHRJNW13cQ=='
 ```
 
-#### 6.7 修改 modules.manager
+### 6.7 修改 modules.manager
 
 ```shell
 // Redis 命令
@@ -422,18 +422,18 @@ curl --request POST 'http://127.0.0.1/waf/config/refresh' \
     --header 'Authorization: Basic d2FmOlRUcHNYSHRJNW13cQ=='
 ```
 
-### 7. 参考项目
+## 7. 参考项目
 
 * [VeryNginx](https://github.com/alexazhou/VeryNginx)
 
-### 8. OpenResty 一些知识
+## 8. OpenResty 一些知识
 
-#### 8.1 模块里的变量
+### 8.1 模块里的变量
 
 * 处于模块级别的变量在每个 worker 间是相互独立的，且在 worker 的生命周期中是只读的, 只在第一次导入模块时初始化.
 * 模块里函数的局部变量,则在调用时初始化
 
-#### 8.2 `ngx.var.*`
+### 8.2 `ngx.var.*`
 
 * [lua-nginx-module#ngxvarvariable](https://github.com/openresty/lua-nginx-module#ngxvarvariable)
 * 使用代价较高
@@ -441,19 +441,19 @@ curl --request POST 'http://127.0.0.1/waf/config/refresh' \
 * 类型只能是字符串
 * 内部重定向会破坏原始请求的 `ngx.var.*` 变量 (如 `error_page`, `try_files`, `index` 等)
 
-#### 8.3 `ngx.ctx.*`
+### 8.3 `ngx.ctx.*`
 
 * [lua-nginx-module#ngxctx](https://github.com/openresty/lua-nginx-module#ngxctx)
 * 内部重定向会破坏原始请求的 `ngx.ctx.*` 变量 (如 `error_page`, `try_files`, `index` 等)
 
-#### 8.4 `ngx.shared.DICT.*`
+### 8.4 `ngx.shared.DICT.*`
 
 * 可在不同 worker 间共享数据
 * [lua-nginx-module#ngxshareddict](https://github.com/openresty/lua-nginx-module#ngxshareddict)
 * [data-sharing-within-an-nginx-worker](https://github.com/openresty/lua-nginx-module/#data-sharing-within-an-nginx-worker)
 
 
-#### 8.5 `resty.lrucache`
+### 8.5 `resty.lrucache`
 
 * [lua-resty-lrucache](https://github.com/openresty/lua-resty-lrucache)
 * 不同 worker 间数据相互隔离
@@ -461,12 +461,12 @@ curl --request POST 'http://127.0.0.1/waf/config/refresh' \
 
 [https://github.com/openresty/lua-nginx-module/#data-sharing-within-an-nginx-worker](https://github.com/openresty/lua-nginx-module/#data-sharing-within-an-nginx-worker)
 
-#### 8.6 table 与 metatable
+### 8.6 table 与 metatable
 
 [https://www.cnblogs.com/liekkas01/p/12728712.html](https://www.cnblogs.com/liekkas01/p/12728712.html)
 
 
-### 9. 一些相关链接
+## 9. 一些相关链接
 
 * OpenResty LuaJIT2 [https://github.com/openresty/luajit2#tablenkeys](https://github.com/openresty/luajit2#tablenkeys)
 * Lua 手册[Lua 5.4](https://www.lua.org/manual/5.4/)
