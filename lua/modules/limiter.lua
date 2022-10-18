@@ -24,46 +24,39 @@ function _M.run(config)
         local matcher = matcher_list[ rule['matcher'] ]
         if enable == true and request_tester.test( matcher ) == true then
 
-            local key = i
+            local time = rule['time'] or 60
+            local count = rule['count'] or 60
+            local key = tostring(count) .. "/" .. tostring(time) .. ":" .. rule['matcher'] .. ";"
             if rule['by'] ~= nil then
-                for by in string.gmatch(rule['by'], '([^,]+)') do
+                for by in string.gmatch(rule['by'], '[^,]+') do
                     if by == 'ip' then
                         local client_ip = comm.get_client_ip()
                         if client_ip == nil then
                             goto continue
                         end
-                        key = key..'_'.. client_ip
+                        key = key ..'ip:'.. client_ip .. ';'
                     elseif by == 'uri' then
-                        key = key..'_'..ngx.var.uri
+                        key = key..'uri:'..ngx.var.uri .. ';'
                     elseif by == 'uid' then
                         local uid = comm.get_user_id()
                         if uid == 0 then
                             goto continue
                         end
-                        key = key..'_'.. uid
+                        key = key..'uid:'.. uid .. ';'
                     elseif by == 'device' then
                         local device_id = comm.get_device_id()
                         if device_id == nil then
                             goto continue
                         end
-                        key = key..'_'.. device_id
+                        key = key..'device:'.. device_id .. ';'
                     end
                 end
-            else
-                key = key..rule['matcher']
             end
 
-            local time = rule['time'] or 60
-            local count = rule['count'] or 60
             local count_now = limiter:get(key)
 
-            if count_now == nil then
-                limiter:set(key, 1, tonumber(time))
-                count_now = 0
-            end
-
-            limiter:incr(key, 1)
-
+            key = string.gsub(key, "^(.*);$", "%1")
+            local count_now = limiter:incr( key, 1, 0, tonumber(time) )
             if count_now > tonumber(count) then
                 comm.response(response_list, rule['code'])
             end

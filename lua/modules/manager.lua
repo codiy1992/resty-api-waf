@@ -134,6 +134,56 @@ function _M.counter_get(config)
     return require('cjson').encode(data)
 end
 
+function _M.limiter_get(config)
+    local limiter = ngx.shared.limiter
+    local data = {}
+    local inputs = require('cjson').decode(ngx.req.get_body_data() or '{}')
+    local scale = 1024
+    if inputs['scale'] ~= nil then
+        scale = tonumber(inputs['scale'])
+    end
+    local count = 1
+    if inputs['count'] ~=nil then
+        count = tonumber(inputs['count'])
+    end
+
+    if type(inputs['q']) == 'table' and table.getn(inputs['q']) > 0 then
+        for _,v in ipairs(inputs['q']) do
+            local total = limiter:get(v)
+            if total ~= nil then
+                local time,matcher, by, key = v:match"^([^:]+):([^;]+);(.+):([^:]*)$"
+                if data[time] == nil then data[time] = {} end
+                if data[time][matcher] == nil then data[time][matcher] = {} end
+                if data[time][matcher][by] == nil then data[time][matcher][by] = {} end
+                data[time][matcher][by][key] = total
+            end
+        end
+    else
+        local keys = limiter:get_keys(scale)
+        for i,v in ipairs(keys) do
+            if inputs['q'] ~= nil and type(inputs['q']) == 'string' and inputs['q'] ~= '' then
+                if ngx.re.find(v, inputs['q'], 'isjo') == nil then
+                    goto continue
+                end
+            else
+                if i > 2048 then
+                    goto continue
+                end
+            end
+            local time,matcher, by, key = v:match"^([^:]+):([^;]+);(.+):([^:]*)$"
+            local total = limiter:get(v)
+            if total >= count then
+                if data[time] == nil then data[time] = {} end
+                if data[time][matcher] == nil then data[time][matcher] = {} end
+                if data[time][matcher][by] == nil then data[time][matcher][by] = {} end
+                data[time][matcher][by][key] = total
+            end
+            ::continue::
+        end
+    end
+    return require('cjson').encode(data)
+end
+
 function _M.auth_check(auth)
     local token = nil
     local header = ngx.var.http_Authorization
@@ -257,6 +307,7 @@ _M.routes = {
     { ['method'] = "POST", ["path"] = "/list", ['handle'] = _M.list_set},
     { ['method'] = "POST", ["path"] = "/list/reload", ['handle'] = _M.list_reload},
     { ['method'] = "GET", ["path"] = "/modules/counter", ['handle'] = _M.counter_get},
+    { ['method'] = "GET", ["path"] = "/modules/limiter", ['handle'] = _M.limiter_get},
 }
 
 return _M
