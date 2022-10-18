@@ -38,20 +38,28 @@ end
 function _M.config_set(config)
     local inputs = require('cjson').decode(ngx.req.get_body_data() or '{}')
     local keys = {
-        "matcher", "response", "modules.manager.auth", "modules.filter.rules",
-        "modules.limiter.rules", "modules.counter.rules"
+        "matcher", "response", "modules.manager.auth",
+        "modules.filter.rules", "modules.limiter.rules", "modules.counter.rules",
+        "modules.filter.enable", "modules.limiter.enable", "modules.counter.enable"
     }
     for i,key in pairs(keys) do
         local last_field = nil
         local sub_inputs = inputs
         local sub_config = config
         for field in string.gmatch(key, "%w+") do
+            if field == 'enable' then
+                sub_config[field] = sub_inputs[field]
+                goto continue
+            end
             sub_inputs = sub_inputs[field]
             sub_config = sub_config[field]
             if sub_inputs == nil then
                 goto continue
             end
             last_field = field
+        end
+        if type(sub_inputs) ~= 'table' then
+            goto continue
         end
         for name,value in pairs(sub_inputs) do
             if last_field == 'rules' then

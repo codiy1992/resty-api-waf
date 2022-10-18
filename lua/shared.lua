@@ -15,7 +15,11 @@ end
 function _M.reload_config()
     local config = require('config');
     redis.exec(function (rds, config)
-        local keys = {"matcher", "response", "modules.manager.auth", "modules.filter.rules", "modules.limiter.rules", "modules.counter.rules"}
+        local keys = {
+            "matcher", "response", "modules.manager.auth",
+            "modules.filter.rules", "modules.limiter.rules", "modules.counter.rules",
+            "modules.filter", "modules.limiter", "modules.counter"
+        }
         for i,key in pairs(keys) do
 
             local res, err = rds:hgetall("waf:config:"..key);
@@ -36,6 +40,10 @@ function _M.reload_config()
             end
             for i = 1,nkeys(res),2 do
                 local name = tostring(res[i])
+                if name == 'enable' then
+                    sub_config[name] = cjson.decode(res[i+1])
+                    goto continue
+                end
                 local value = cjson.decode(res[i+1])
                 if last_field == 'rules' then
                     for pos,rule in ipairs(sub_config) do
@@ -50,8 +58,6 @@ function _M.reload_config()
                         end
                     end
                     table.insert(sub_config, value)
-                else
-                    sub_config[name] = value
                 end
             end
 
