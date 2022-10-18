@@ -314,8 +314,8 @@ _M.routes = {
     { ['method'] = "GET", ["path"] = "/list", ['handle'] = _M.list_get},
     { ['method'] = "POST", ["path"] = "/list", ['handle'] = _M.list_set},
     { ['method'] = "POST", ["path"] = "/list/reload", ['handle'] = _M.list_reload},
-    { ['method'] = "GET", ["path"] = "/modules/counter", ['handle'] = _M.counter_get},
-    { ['method'] = "GET", ["path"] = "/modules/limiter", ['handle'] = _M.limiter_get},
+    { ['method'] = "GET", ["path"] = "/module/counter", ['handle'] = _M.counter_get},
+    { ['method'] = "GET", ["path"] = "/module/limiter", ['handle'] = _M.limiter_get},
 }
 
 return _M

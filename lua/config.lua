@@ -17,8 +17,7 @@ local _M = {
             ["enable"] = true,
             ["rules"] = {
                 {["matcher"] = 'any', ["by"] = "ip", ["time"] = 60, ["count"] = 60, ["code"] = 403, ["enable"] = false },
-                {["matcher"] = 'any', ["by"] = "uri", ["time"] = 60, ["count"] = 60, ["code"] = 403, ["enable"] = false },
-                {["matcher"] = 'any', ["by"] = "ip,uri", ["time"] = 60, ["count"] = 60, ["code"] = 403, ["enable"] = false},
+                {["matcher"] = 'any', ["by"] = "ip,uri", ["time"] = 60, ["count"] = 10, ["code"] = 403, ["enable"] = false},
             }
         },
         ["counter"] = {
