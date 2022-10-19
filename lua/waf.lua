@@ -9,6 +9,11 @@ function _M.run(modules)
     end
 end
 
+function _M.init()
+    shared.reload_config()
+    shared.reload_list()
+end
+
 function _M.save_config()
     local config = shared.get_config()
     local dkjson = require("lib.dkjson");

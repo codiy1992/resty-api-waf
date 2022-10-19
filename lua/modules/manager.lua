@@ -36,7 +36,11 @@ function _M.config_get(config)
 end
 
 function _M.config_set(config)
-    local inputs = require('cjson').decode(ngx.req.get_body_data() or '{}')
+    local inputs, err = require('cjson.safe').decode(ngx.req.get_body_data() or '{}')
+    if inputs == nil then
+        ngx.say('{"code": 422, "message":' .. err .. '}')
+        return
+    end
     local keys = {
         "matcher", "response", "modules.manager.auth",
         "modules.filter.rules", "modules.limiter.rules", "modules.counter.rules",
@@ -47,7 +51,7 @@ function _M.config_set(config)
         local sub_inputs = inputs
         local sub_config = config
         for field in string.gmatch(key, "%w+") do
-            if field == 'enable' then
+            if field == 'enable' and sub_inputs[field] ~= nil then
                 sub_config[field] = sub_inputs[field]
                 goto continue
             end
@@ -97,7 +101,11 @@ end
 function _M.counter_get(config)
     local counter = ngx.shared.counter
     local data = {}
-    local inputs = require('cjson').decode(ngx.req.get_body_data() or '{}')
+    local inputs, err = require('cjson.safe').decode(ngx.req.get_body_data() or '{}')
+    if inputs == nil then
+        ngx.say('{"code": 422, "message":' .. err .. '}')
+        return
+    end
     local scale = 1024
     if inputs['scale'] ~= nil then
         scale = tonumber(inputs['scale'])
@@ -145,7 +153,11 @@ end
 function _M.limiter_get(config)
     local limiter = ngx.shared.limiter
     local data = {}
-    local inputs = require('cjson').decode(ngx.req.get_body_data() or '{}')
+    local inputs,err = require('cjson.safe').decode(ngx.req.get_body_data() or '{}')
+    if inputs == nil then
+        ngx.say('{"code": 422, "message":' .. err .. '}')
+        return
+    end
     local scale = 1024
     if inputs['scale'] ~= nil then
         scale = tonumber(inputs['scale'])
@@ -245,7 +257,11 @@ end
 function _M.list_get()
     local list = ngx.shared.list
     local data = {}
-    local inputs = require('cjson').decode(ngx.req.get_body_data() or '{}')
+    local inputs, err = require('cjson.safe').decode(ngx.req.get_body_data() or '{}')
+    if inputs == nil then
+        ngx.say('{"code": 422, "message":' .. err .. '}')
+        return
+    end
     local scale = 1024
     if inputs['scale'] ~= nil then
         scale = tonumber(inputs['scale'])
@@ -292,10 +308,14 @@ end
 function _M.list_set()
     local list = ngx.shared.list
     local data = {}
-    local inputs = require('cjson').decode(ngx.req.get_body_data() or '{}')
+    local inputs, err  = require('cjson.safe').decode(ngx.req.get_body_data() or '{}')
+    if inputs == nil then
+        ngx.say('{"code": 422, "message":' .. err .. '}')
+        return
+    end
     for identifier,v in pairs(inputs) do
         local ttl = tonumber(v)
-        if ttl <= 0 then
+        if ttl == nil or ttl <= 0 then
             ngx.shared.list:set(identifier, nil)
         elseif ttl >= 2678400 then
             ngx.shared.list:set(identifier, 2678400, 2678400)
@@ -303,7 +323,7 @@ function _M.list_set()
             ngx.shared.list:set(identifier, ttl, ttl)
         end
     end
-   return require('cjson').encode({})
+   return require('cjson').encode(data)
 end
 
 _M.routes = {

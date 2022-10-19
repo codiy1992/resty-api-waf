@@ -1,9 +1,3 @@
--- -*- coding: utf-8 -*-
--- @Date    : 2016-02-06 22:26
--- @Author  : Alexa (AlexaZhou@163.com)
--- @Link    :
--- @Disc    : test a request hit a matcher or not
-
 local _M = {}
 
 local tester = {}
@@ -87,9 +81,9 @@ function _M.test_many_var( var_table, condition )
     local find = ngx.re.find
     local test_var = _M.test_var
 
-    local name_operator = condition['name_operator']
-    local name_value = condition['name_value']
-    local operator = condition['operator']
+    local name_operator = condition['name_operator'] or "="
+    local name_value = condition['name']
+    local operator = condition['operator'] or condition['value_operator']
     local value = condition['value']
 
      -- Insert !Exist Check here as it is only applied to operator
@@ -151,9 +145,9 @@ function _M.test_args( condition )
     local find = ngx.re.find
     local test_var = _M.test_var
 
-    local name_operator = condition['name_operator']
-    local name_value = condition['name_value']
-    local operator = condition['operator']
+    local name_operator = condition['name_operator']  or '≈'
+    local name_value = condition['name']
+    local operator = condition['operator'] or condition['value_operator']
     local value = condition['value']
 
     --handle args behind uri
@@ -179,12 +173,14 @@ function _M.test_args( condition )
         return false
     end
 
-    local body_args,err = ngx.req.get_post_args()
+    local body_args, err  = require('cjson.safe').decode(ngx.req.get_body_data())
     if body_args == nil then
-        ngx.say("failed to get post args: ", err)
-        return false
+        body_args,err = ngx.req.get_post_args()
+        if body_args == nil then
+            ngx.say("failed to get post args: ", err)
+            return false
+        end
     end
-
     --check args in body
     for k,v in pairs( body_args ) do
         if test_var( name_operator, name_value, k ) == true then

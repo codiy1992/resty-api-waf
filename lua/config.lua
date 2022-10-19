@@ -36,10 +36,30 @@ local _M = {
         },
     },
     ["matcher"] = {
-        ["any"] = {},
+        ["any"] = {
+
+        },
+        ["wan"] = {
+            ["IP"] = {
+                ['operator'] = "!≈",
+                ['value']="(10.|192.168|172.1[6-9].|172.2[0-9].|172.3[01].).*",
+            },
+        },
+        ["method_post"] = {
+            ["Method"] = {
+                ['operator'] = "≈",
+                ['value']="(put|post|delete)",
+            },
+        },
+        ["trusted_referer"] = {
+            ["Method"] = {
+                ['operator'] = "#",
+                ['value']= {},
+            },
+        },
         ["attack_sql"] = {
             ["Args"] = {
-                ['name_operator'] = "*",
+                ['name'] = ".*",
                 ['operator'] = "≈",
                 ['value']="select.*from",
             },
@@ -58,8 +78,7 @@ local _M = {
         },
         ["app_id"] = {
             ["Header"] = {
-                ["name_operator"] = "=",
-                ["name_value"] = "x-app-id",
+                ["name"] = "x-app-id",
                 ["operator"] = "#",
                 ["value"] = {
                     0
@@ -68,14 +87,13 @@ local _M = {
         },
         ["app_version"] = {
             ["Header"] = {
-                ["name_operator"] = "=",
-                ["name_value"] = "x-app-version",
+                ["name"] = "x-app-version",
                 ["operator"] = "#",
                 ["value"] = {
                     "0.0.0",
                 },
             }
-        },
+        }
     },
     ["response"] = {
         ["403"] = {
