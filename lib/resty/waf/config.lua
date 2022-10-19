@@ -45,10 +45,10 @@ local _M = {
                 ['value']="(10.|192.168|172.1[6-9].|172.2[0-9].|172.3[01].).*",
             },
         },
-        ["method_post"] = {
+        ["post"] = {
             ["Method"] = {
                 ['operator'] = "≈",
-                ['value']="(put|post|delete)",
+                ['value']="(put|post)",
             },
         },
         ["trusted_referer"] = {

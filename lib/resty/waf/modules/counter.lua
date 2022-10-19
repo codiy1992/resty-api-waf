@@ -1,7 +1,7 @@
 local _M = {}
 
-local comm = require "lib.comm"
-local request_tester = require "lib.tester"
+local comm = require "resty.waf.lib.comm"
+local request_tester = require "resty.waf.lib.tester"
 
 local counter = ngx.shared.counter
 

@@ -1,11 +1,11 @@
 local _M = {}
 local cjson = require("cjson")
-local shared = require("shared")
+local shared = require("resty.waf.shared")
 
 function _M.run(modules)
     local config = shared.get_config()
     for i, module in ipairs(modules) do
-        require("modules." .. tostring(module)).run(config)
+        require("resty.waf.modules." .. tostring(module)).run(config)
     end
 end
 
@@ -16,7 +16,7 @@ end
 
 function _M.save_config()
     local config = shared.get_config()
-    local dkjson = require("lib.dkjson");
+    local dkjson = require("resty.waf.lib.dkjson");
     local current_script_path = debug.getinfo(1, "S").source:sub(2)
     local home_path = current_script_path:sub( 1, 0 - string.len("/waf.lua") - 1 )
     local config_data = dkjson.encode( config, {indent = true})

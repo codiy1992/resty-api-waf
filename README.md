@@ -1,6 +1,36 @@
 # 项目说明
 
-> 安装及依赖详见 `Dockerfile`
+## 0. 安装使用
+
+* 本项目基于 OpenResty，所以需要先安装好 OpenResty, Linux各发行版安装详见[OpenResty® Linux 包](https://openresty.org/cn/linux-packages.html)
+* 通过 OpenResty 的包管理器 `opm` 安装本项目 `opm get codiy1992/lua-resty-waf`
+* 如下配置nginx, 即可正常工作
+
+```nginx
+http {
+    # 在 http 区块添加如下设定
+    lua_code_cache on;
+    lua_need_request_body on;
+    lua_shared_dict waf 32k;
+    lua_shared_dict list 10m;
+    lua_shared_dict limiter 10m;
+    lua_shared_dict counter 10m;
+    init_worker_by_lua_block {
+        if ngx.worker.id() == 0 then
+            ngx.timer.at(0, require("resty.waf").init)
+        end
+    }
+    access_by_lua_block {
+        local waf = require("resty.waf")
+        waf.run({
+            "filter",
+            "limiter",
+            "counter",
+            "manager",
+        })
+    }
+}
+```
 
 ## 1. 几个共享内存
 
@@ -21,7 +51,7 @@
 * `response` 自定义响应格式, 可在各模块间共用, 用于waf模块内的http响应
 * `modules` 模块配置, 包含 `filter`, `limiter`, `counter`, `manager` 四大模块
 
-### 3.1 matcher
+### 3.1 Matcher
 
 在模块内根据HTTP请求的 `ip`, `uri`, `args`, `header`, `body`, `user_agent`, `referer` 等信息匹配请求, 匹配命中的请求将在模块内进行下一步操作比如,限制访问直接返回或者记录请求频次等
 
@@ -43,9 +73,9 @@
     "any": {}, // 匹配任意请求, 可以有其他名字, 如 `"*": {}`
     "attack_sql": {// 从args中匹配sql注入字符, 默认配置仅提供简单示例, 可以自行增加/修改配置
         "Args": {
-            "value": "select.*from",
+            "name": ".*",
             "operator": "≈",
-            "name_operator": "*"
+            "value": "select.*from"
         }
     },
     "attack_file_ext": {// 匹配URI中以特定字符结尾的请求
@@ -60,30 +90,46 @@
             "operator": "≈"
         }
     },
+    "post": {
+        "Method": {
+            "value": "(put|post)",
+            "operator": "≈"
+        }
+    },
+    "trusted_referer": {
+        "Method": {
+            "value": {},
+            "operator": "#"
+        }
+    },
+    "wan": { // 匹配来自公网的请求
+        "IP": {
+            "value": "(10.|192.168|172.1[6-9].|172.2[0-9].|172.3[01].).*",
+            "operator": "!≈"
+        }
+    },
     "app_id": { // 匹配头信息X-App-ID的值出现在value中的请求
         "Header": {
+            "name": "x-app-id",
+            "operator": "#",
             "value": [
                 0
-            ],
-            "name_value": "x-app-id",
-            "operator": "#",
-            "name_operator": "="
+            ]
         }
     },
     "app_version": { // 匹配头信息X-App-Version的值出现在value中的请求
         "Header": {
+            "name": "x-app-version",
+            "operator": "#",
             "value": [
                 "0.0.0"
-            ],
-            "name_value": "x-app-version",
-            "operator": "#",
-            "name_operator": "="
+            ]
         }
     }
 }
 ```
 
-### 3.2 response
+### 3.2 Response
 
 用于`waf`模块拒绝请求时候响应给客户端
 
@@ -98,7 +144,7 @@
 }
 ```
 
-### 3.3 filter 模块
+### 3.3 Filter 模块
 
 用于过滤请求,流程如下
 * `matcher`匹配上的请求, 执行放行`accept`或者拒绝`block`操作
@@ -169,8 +215,6 @@
 
 用于请求频率限制,对于匹配`matcher`的请求, 可基于`ip`,`uri`,`uid`,`device`及其组合建立频率控制规则
 
-可用接口`/waf/module/limiter` 观察此模块信息
-
 模块默认配置如下:
 ```json
 {
@@ -196,14 +240,9 @@
 }
 ```
 
-### 3.5 counter 模块
-
-统计请求次数,根据 `ip`, `uri`, `uid` `device`及其任意组合如`ip,uri`, `uri,ip`,来统计请求次数
-
-
-可用接口`/waf/module/limiter` 观察统计信息
+可用接口`/waf/module/limiter` 查询此模块信息
 ```shell
-curl --location --request GET 'http://127.0.0.1/waf/module/counter' \
+curl --location --request GET 'http://127.0.0.1/waf/module/limiter' \
 --header 'Content-Type: application/json' \
 --header 'Authorization: Basic d2FmOlRUcHNYSHRJNW13cQ==' \
 --data-raw '{
@@ -213,6 +252,11 @@ curl --location --request GET 'http://127.0.0.1/waf/module/counter' \
     "keys": [], // 指定查询特定key, 当指定此参数时, 参数q将失效
 }'
 ```
+![](https://s3.codiy.net/repo/lua-resty-waf/19154731.png?d=200x200)
+
+### 3.5 counter 模块
+
+统计请求次数,根据 `ip`, `uri`, `uid` `device`及其任意组合如`ip,uri`, `uri,ip`,来统计请求次数
 
 模块默认配置如下:
 ```json
@@ -235,6 +279,20 @@ curl --location --request GET 'http://127.0.0.1/waf/module/counter' \
 }
 ```
 
+可用接口`/waf/module/limiter` 观察统计信息
+```shell
+curl --location --request GET 'http://127.0.0.1/waf/module/counter' \
+--header 'Content-Type: application/json' \
+--header 'Authorization: Basic d2FmOlRUcHNYSHRJNW13cQ==' \
+--data-raw '{
+    "count": 1, // 请求数量 >= 1
+    "scale": 1024, // 数据规模设置为0可取全部统计数据,默认1024
+    "q": "", // 查询匹配, 可以是字符串或者正则表达式
+    "keys": [], // 指定查询特定key, 当指定此参数时, 参数q将失效
+}'
+```
+![](https://s3.codiy.net/repo/lua-resty-waf/19155058.png?d=200x200)
+
 ### 3.6 manager 模块
 
 用于 waf 的管理, 提供一系列以 `/waf` 开头的路由, 需要通过 Basic Authorizaton 认证
@@ -255,13 +313,183 @@ curl --location --request GET 'http://127.0.0.1/waf/module/counter' \
 ### 3.7 完整的默认配置
 
 ```json
+{
+    "matcher": {
+        "attack_sql": {
+            "Args": {
+                "operator": "≈",
+                "name": ".*",
+                "value": "select.*from"
+            }
+        },
+        "attack_file_ext": {
+            "URI": {
+                "value": "\\.(htaccess|bash_history|ssh|sql)$",
+                "operator": "≈"
+            }
+        },
+        "any": {},
+        "attack_agent": {
+            "UserAgent": {
+                "value": "(nmap|w3af|netsparker|nikto|fimap|wget)",
+                "operator": "≈"
+            }
+        },
+        "app_id": {
+            "Header": {
+                "operator": "#",
+                "name": "x-app-id",
+                "value": [
+                    0
+                ]
+            }
+        },
+        "method_post": {
+            "Method": {
+                "value": "(put|post|delete)",
+                "operator": "≈"
+            }
+        },
+        "app_version": {
+            "Header": {
+                "operator": "#",
+                "name": "x-app-version",
+                "value": [
+                    "0.0.0"
+                ]
+            }
+        },
+        "trusted_referer": {
+            "Method": {
+                "value": {},
+                "operator": "#"
+            }
+        },
+        "wan": {
+            "IP": {
+                "value": "(10.|192.168|172.1[6-9].|172.2[0-9].|172.3[01].).*",
+                "operator": "!≈"
+            }
+        }
+    },
+    "response": {
+        "403": {
+            "status": 403,
+            "mime_type": "application/json",
+            "body": "{\"code\":\"403\", \"message\":\"403 Forbidden\"}"
+        }
+    },
+    "modules": {
+        "manager": {
+            "enable": true,
+            "auth": {
+                "pass": "TTpsXHtI5mwq",
+                "user": "waf"
+            }
+        },
+        "limiter": {
+            "rules": [
+                {
+                    "matcher": "any",
+                    "time": 60,
+                    "count": 60,
+                    "enable": false,
+                    "by": "ip",
+                    "code": 403
+                },
+                {
+                    "matcher": "any",
+                    "time": 60,
+                    "count": 10,
+                    "enable": false,
+                    "by": "ip,uri",
+                    "code": 403
+                }
+            ],
+            "enable": true
+        },
+        "counter": {
+            "rules": [
+                {
+                    "by": "ip",
+                    "matcher": "any",
+                    "time": 60,
+                    "enable": false
+                },
+                {
+                    "by": "ip,uri",
+                    "matcher": "any",
+                    "time": 60,
+                    "enable": false
+                }
+            ],
+            "enable": true
+        },
+        "filter": {
+            "rules": [
+                {
+                    "matcher": "any",
+                    "enable": true,
+                    "by": "ip:in_list",
+                    "action": "block",
+                    "code": 403
+                },
+                {
+                    "matcher": "any",
+                    "enable": true,
+                    "by": "device:in_list",
+                    "action": "block",
+                    "code": 403
+                },
+                {
+                    "matcher": "any",
+                    "enable": true,
+                    "by": "uid:in_list",
+                    "action": "block",
+                    "code": 403
+                },
+                {
+                    "code": 403,
+                    "matcher": "attack_sql",
+                    "action": "block",
+                    "enable": true
+                },
+                {
+                    "code": 403,
+                    "matcher": "attack_file_ext",
+                    "action": "block",
+                    "enable": true
+                },
+                {
+                    "code": 403,
+                    "matcher": "attack_agent",
+                    "action": "block",
+                    "enable": true
+                },
+                {
+                    "code": 403,
+                    "matcher": "app_id",
+                    "action": "block",
+                    "enable": false
+                },
+                {
+                    "code": 403,
+                    "matcher": "app_version",
+                    "action": "block",
+                    "enable": false
+                }
+            ],
+            "enable": true
+        }
+    }
+}
 ```
 
 ## 4. 自定义配置(临时生效, 通过HTTP接口)
 
 ### 4.1 自定义配置config
 
-自定义配置将以**覆盖模式**和默认配置**合并**, 作为当前配置, **在nginx重启或者通过接口`/waf/config/reload`重载配置后失效**
+自定义配置将以**覆盖模式**和默认配置**合并**, **在nginx重启或者通过接口`/waf/config/reload`重载配置后失效**
 
 ```shell
 curl --request POST 'http://127.0.0.1/waf/config' \
@@ -314,23 +542,23 @@ curl --location --request POST 'http://127.0.0.1/waf/list' \
 
 * config存放在 redis 中以 `waf:config:` 为开头的`hset` 中
 * 目前支持几个配置项, 
-    * `waf:config:matcher`
-    * `waf:config:response`
-    * `waf:config:modules.manager.auth`
-    * `waf:config:modules.filter.rules`
-    * `waf:config:modules.limiter.rules`
-    * `waf:config:modules.counter.rules`
-    * `waf:config:modules.filter`(仅支持对`enable`进行设置)
-    * `waf:config:modules.limiter`(仅支持对`enable`进行设置)
-    * `waf:config:modules.counter`(仅支持对`enable`进行设置)
-* 如在`redis`中执行命令`hset waf:config:modules.counter enable false`
-* 在 redis 配置后需执行`/waf/config/reload`将配置与默认配置进行合并,方可生效
+    * **`waf:config:matcher`**
+    * **`waf:config:response`**
+    * **`waf:config:modules.manager.auth`**
+    * **`waf:config:modules.filter.rules`**
+    * **`waf:config:modules.limiter.rules`**
+    * **`waf:config:modules.counter.rules`**
+    * **`waf:config:modules.filter`**(仅支持对`enable`进行设置)
+    * **`waf:config:modules.limiter`**(仅支持对`enable`进行设置)
+    * **`waf:config:modules.counter`**(仅支持对`enable`进行设置)
+* 如在`redis`中执行命令 **`hset waf:config:modules.counter enable false`**
+* 在 redis 配置后需执行 **`/waf/config/reload`** 将配置与默认配置进行合并,方可生效
 
 ### 5.2 自定义配置list
 
-* 自定义的list放在 redis 中以 `waf:list` 为key的 `zset` 中
-* 如在`redis`中执行命令`zadd waf:list 86400 127.0.0.1`
-* 在 redis 配置后需执行`/waf/list/reload`将配置与当前共享内存名单合并后生效
+* 自定义的list放在 redis 中以 **`waf:list`** 为key的 `zset` 中
+* 如在`redis`中执行命令 **`zadd waf:list 86400 127.0.0.1`**
+* 在 redis 配置后需执行 **`/waf/list/reload`** 将配置与当前共享内存名单合并后生效
 
 ## 6. 应用场景示范
 
@@ -346,7 +574,7 @@ zadd waf:list 3600 13.251.156.174
 curl --request POST 'http://127.0.0.1/waf/list/reload' \
     --header 'Authorization: Basic d2FmOlRUcHNYSHRJNW13cQ=='
 ```
-**示例二**: **允许访问** 将黑名单改为白名单(修改默认配置,将`list`用作白名单)
+**示例二**: **允许访问** (修改默认配置,将`list`用作白名单)
 
 在 redis 中执行
 ```shell
@@ -379,7 +607,7 @@ curl --request POST 'http://127.0.0.1/waf/config/reload' \
 // Redis 命令
 hset waf:config:response 503 '{"status":503,"mime_type":"application/json","body":"{\"code\":\"503\", \"message\":\"Custom Message\"}"}'
 // 重载配置
-curl --request POST 'http://127.0.0.1/waf/config/refresh' \
+curl --request POST 'http://127.0.0.1/waf/config/reload' \
     --header 'Authorization: Basic d2FmOlRUcHNYSHRJNW13cQ=='
 ```
 ### 6.4 modules.filter.rules
@@ -418,7 +646,7 @@ curl --request POST 'http://127.0.0.1/waf/config/reload' \
 // Redis 命令
 hset waf:config:modules.manager.auth '{"user": "test", "pass": "123" }'
 // 重载配置
-curl --request POST 'http://127.0.0.1/waf/config/refresh' \
+curl --request POST 'http://127.0.0.1/waf/config/reload' \
     --header 'Authorization: Basic d2FmOlRUcHNYSHRJNW13cQ=='
 ```
 

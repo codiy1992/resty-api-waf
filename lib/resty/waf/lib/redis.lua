@@ -39,7 +39,7 @@ function _M.exec(fn, ...)
     local ok, err = rds:connect(host, port)
     if not ok then
         if string.find(err, "no resolver") then
-            local address = require("lib.resolver").query(host)
+            local address = require("resty.waf.lib.resolver").query(host)
             local ok, err = rds:connect(address, port)
             if not ok then
                 ngx.log(ngx.ERR, "failed to connect: ", err)

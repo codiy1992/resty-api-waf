@@ -1,6 +1,6 @@
 local _M = {}
 
-local comm = require "lib.comm"
+local comm = require "resty.waf.lib.comm"
 
 function _M.run(config)
     if config.modules.manager.enable ~= true then
@@ -90,11 +90,11 @@ function _M.config_set(config)
 end
 
 function _M.config_reload()
-    return require('cjson').encode(require("shared").reload_config())
+    return require('cjson').encode(require("resty.waf.shared").reload_config())
 end
 
 function _M.list_reload()
-    require("shared").reload_list()
+    require("resty.waf.shared").reload_list()
     return require('cjson').encode({["code"] = 200, ["message"] = "success"})
 end
 

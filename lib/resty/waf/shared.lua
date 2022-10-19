@@ -1,7 +1,7 @@
 local _M = {}
 
 local cjson = require("cjson")
-local redis = require("lib.redis")
+local redis = require("resty.waf.lib.redis")
 local nkeys = require("table.nkeys")
 
 function _M.get_config()
@@ -13,7 +13,7 @@ function _M.get_config()
 end
 
 function _M.reload_config()
-    local config = require('config');
+    local config = require('resty.waf.config');
     redis.exec(function (rds, config)
         local keys = {
             "matcher", "response", "modules.manager.auth",
